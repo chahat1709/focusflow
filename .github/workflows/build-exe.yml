@@ -1,0 +1,67 @@
+name: Build FocusFlow EXE
+
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+        
+    - name: Build EXE with PyInstaller
+      run: |
+        pyinstaller --onefile --noconsole --name="FocusFlow" --icon=assets/icon.ico --add-data "assets;assets" --add-data "src;src" start_app_monolith.py
+        
+    - name: Create Release Package
+      run: |
+        mkdir FocusFlow_Release
+        copy dist\FocusFlow.exe FocusFlow_Release\
+        copy README_CLIENT.md FocusFlow_Release\README.txt
+        echo. > FocusFlow_Release\DOUBLE_CLICK_TO_START.txt
+        echo Just double-click FocusFlow.exe to launch the app! >> FocusFlow_Release\DOUBLE_CLICK_TO_START.txt
+        
+    - name: Upload EXE Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: FocusFlow-Windows-EXE
+        path: FocusFlow_Release/
+        
+    - name: Create GitHub Release (if tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist/FocusFlow.exe
+        body: |
+          ## Focus Flow - Professional EEG Monitor
+          
+          **How to use:**
+          1. Download `FocusFlow.exe`
+          2. Double-click to run
+          3. Click "Connect Muse" button
+          4. Start monitoring!
+          
+          **System Requirements:**
+          - Windows 10/11
+          - Bluetooth enabled
+          - Muse headband
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

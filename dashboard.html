@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Flow | Precision Neurofeedback</title>
+    <!-- Local Assets for Offline Capability -->
+    <script src="assets/libs/tailwind.js"></script>
+    <script src="assets/libs/chart.min.js"></script>
+    <script src="assets/libs/three.min.js"></script>
+
+    <style>
+        /* === THERAPEUTIC DESIGN SYSTEM === */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        :root {
+            /* Therapeutic Color Psychology */
+            --ocean-deep: #0A2E4D;
+            --ocean-mid: #1E3A5F;
+            --ocean-light: #2A4365;
+            --therapeutic-teal: #2DD4BF;
+            --healing-sage: #86EFAC;
+            --calm-sky: #7DD3FC;
+            --warm-sand: #FCD34D;
+
+            /* Glass Surfaces */
+            --glass-bg: rgba(42, 67, 101, 0.35);
+            --glass-border: rgba(45, 212, 191, 0.15);
+            --glass-hover: rgba(42, 67, 101, 0.5);
+
+            /* Text */
+            --text-primary: #E0F2FE;
+            --text-secondary: #94A3B8;
+            --text-data: #F0F9FF;
+
+            /* Elevation */
+            --shadow-soft: 0 4px 24px rgba(0, 0, 0, 0.2);
+            --shadow-glow: 0 0 20px rgba(45, 212, 191, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--ocean-deep) 0%, var(--ocean-mid) 50%, var(--ocean-deep) 100%);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            /* Hardware acceleration */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* === SMOOTH SCROLLBARS === */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--therapeutic-teal);
+            border-radius: 10px;
+            transition: background 0.3s ease;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--calm-sky);
+        }
+
+        /* === LAYOUT === */
+        .app-container {
+            display: flex;
+            height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .brand {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 32px;
+            padding-left: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-primary);
+        }
+
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--therapeutic-teal), var(--calm-sky));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            animation: breathe 4s ease-in-out infinite;
+        }
+
+        @keyframes breathe {
+
+            0%,
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 10px rgba(45, 212, 191, 0.3);
+            }
+
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 20px rgba(45, 212, 191, 0.5);
+            }
+        }
+
+        /* === TAB NAVIGATION === */
+        .tab-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 32px;
+        }
+
+        .tab-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tab-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.1), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .tab-btn:hover::before {
+            left: 100%;
+        }
+
+        .tab-btn:hover {
+            background: rgba(45, 212, 191, 0.08);
+            border-color: rgba(45, 212, 191, 0.2);
+            transform: translateX(4px);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, rgba(45, 212, 191, 0.15), rgba(125, 211, 252, 0.10));
+            border-color: var(--therapeutic-teal);
+            color: var(--therapeutic-teal);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .tab-icon {
+            font-size: 20px;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .tab-btn.active .tab-icon {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            height: 80px;
+            padding: 0 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .session-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .session-title {
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: -0.5px;
+        }
+
+        .session-title span {
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--therapeutic-teal), var(--calm-sky));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .session-controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-group:hover {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-primary {
+            padding: 10px 24px;
+            background: linear-gradient(135deg, var(--therapeutic-teal), var(--calm-sky));
+            border: none;
+            border-radius: 10px;
+            color: var(--ocean-deep);
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 4px 12px rgba(45, 212, 191, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(45, 212, 191, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        /* === TAB CONTENT === */
+        .tab-content-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tab-panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transform: translateX(20px);
+            pointer-events: none;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 32px;
+            overflow-y: auto;
+        }
+
+        .tab-panel.active {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: all;
+        }
+
+        /* === THERAPEUTIC CARDS === */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .metric-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: fadeInUp 0.6s ease backwards;
+        }
+
+        .metric-card:hover {
+            background: var(--glass-hover);
+            border-color: var(--therapeutic-teal);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-glow);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card-header {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .card-value {
+            font-size: 42px;
+            font-weight: 300;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-data);
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .card-unit {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-left: 8px;
+        }
+
+        .card-status {
+            font-size: 12px;
+            color: var(--healing-sage);
+            margin-top: 8px;
+        }
+
+        /* Chart Container */
+        .chart-section {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .chart-header {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Connection Status */
+        .status-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: auto;
+        }
+
+        .status-header {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .status-text {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .status-text.online {
+            color: var(--healing-sage);
+        }
+
+        .status-text.offline {
+            color: var(--text-secondary);
+        }
+
+        .signal-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .signal-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            transition: all 0.4s ease;
+        }
+
+        .signal-bar.good {
+            background: var(--healing-sage);
+            box-shadow: 0 0 8px rgba(134, 239, 172, 0.5);
+        }
+
+        .signal-bar.fair {
+            background: var(--warm-sand);
+        }
+
+        .signal-bar.poor {
+            background: #EF4444;
+        }
+
+        .btn-connect {
+            width: 100%;
+            margin-top: 16px;
+            padding: 12px;
+            background: linear-gradient(135deg, rgba(45, 212, 191, 0.2), rgba(125, 211, 252, 0.15));
+            border: 1px solid var(--therapeutic-teal);
+            border-radius: 10px;
+            color: var(--therapeutic-teal);
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-connect:hover {
+            background: linear-gradient(135deg, rgba(45, 212, 191, 0.3), rgba(125, 211, 252, 0.2));
+            box-shadow: var(--shadow-glow);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.4s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal {
+            background: var(--ocean-mid);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 24px;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 24px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .device-item {
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid transparent;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .device-item:hover {
+            background: rgba(45, 212, 191, 0.1);
+            border-color: var(--therapeutic-teal);
+            transform: translateX(4px);
+        }
+
+        .device-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .device-address {
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+        }
+
+        /* Performance: Force GPU acceleration */
+        .metric-card,
+        .tab-panel,
+        .modal,
+        .btn-primary {
+            will-change: transform;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Focus Flow Loading Screen -->
+    <div id="loadingScreen"
+        style="position:fixed;inset:0;background:linear-gradient(135deg,#0A2E4D 0%,#1E3A5F 100%);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.8s ease;">
+        <div style="text-align:center;">
+            <svg width="120" height="120" viewBox="0 0 200 200"
+                style="filter:drop-shadow(0 0 20px rgba(45,212,191,0.5));">
+                <defs>
+                    <linearGradient id="flowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#2DD4BF" />
+                        <stop offset="100%" style="stop-color:#7DD3FC" />
+                    </linearGradient>
+                </defs>
+                <path d="M 40 100 Q 60 80, 80 100 T 120 100 Q 140 120, 160 100" stroke="url(#flowGrad)" stroke-width="4"
+                    fill="none" stroke-linecap="round">
+                    <animate attributeName="stroke-dasharray" from="0,150" to="150,0" dur="2s"
+                        repeatCount="indefinite" />
+                </path>
+                <circle cx="100" cy="100" r="8" fill="url(#flowGrad)" />
+                <circle cx="100" cy="100" r="20" fill="none" stroke="url(#flowGrad)" stroke-width="2" opacity="0.6">
+                    <animate attributeName="r" from="20" to="40" dur="2s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" from="0.6" to="0" dur="2s" repeatCount="indefinite" />
+                </circle>
+            </svg>
+            <h1
+                style="font-size:42px;font-weight:300;margin:30px 0 10px;background:linear-gradient(135deg,#2DD4BF,#7DD3FC);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:2px;">
+                Focus<strong style="font-weight:700;">Flow</strong></h1>
+            <p style="color:#94A3B8;font-size:14px;letter-spacing:1px;text-transform:uppercase;">Precision Neurofeedback
+            </p>
+            <div
+                style="width:200px;height:3px;background:rgba(45,212,191,0.2);margin:30px auto;border-radius:2px;overflow:hidden;">
+                <div
+                    style="width:50%;height:100%;background:linear-gradient(90deg,#2DD4BF,#7DD3FC);animation:load 1.5s ease-in-out infinite;">
+                </div>
+            </div>
+        </div>
+    </div>
+    <style>
+        @keyframes load {
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(300%);
+            }
+        }
+    </style>
+    <script>
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loadingScreen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loadingScreen').style.display = 'none';
+                }, 800);
+            }, 1500);
+        });
+    </script>
+
+    <div id="debugOverlay"></div>
+
+    <!-- 3D Neural Sphere Background -->
+    <canvas id="neuralCanvas"
+        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.4;"></canvas>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <div class="brand-icon">🧠</div>
+                <span>Focus<strong>Flow</strong></span>
+                <small style="opacity:0.5;font-size:10px;display:block;margin-top:4px;">v1.1</small>
+            </div>
+
+            <!-- Tab Navigation -->
+            <nav class="tab-nav">
+                <button class="tab-btn active" data-tab="monitor">
+                    <span class="tab-icon">📊</span>
+                    <span>Monitor</span>
+                </button>
+                <button class="tab-btn" data-tab="analytics">
+                    <span class="tab-icon">📈</span>
+                    <span>Analytics</span>
+                </button>
+                <button class="tab-btn" data-tab="insights">
+                    <span class="tab-icon">💡</span>
+                    <span>Insights</span>
+                </button>
+                <button class="tab-btn" data-tab="settings">
+                    <span class="tab-icon">⚙️</span>
+                    <span>Settings</span>
+                </button>
+            </nav>
+
+            <!-- Connection Status -->
+            <div class="status-card">
+                <div class="status-header">Device Status</div>
+                <div class="status-row">
+                    <span id="connectionStatus" class="status-text offline">OFFLINE</span>
+                    <span id="batteryLevel" style="font-family: 'JetBrains Mono'; font-size: 12px;">--%</span>
+                </div>
+
+                <div class="signal-grid">
+                    <div id="sensor-0" class="signal-bar" title="TP9"></div>
+                    <div id="sensor-1" class="signal-bar" title="AF7"></div>
+                    <div id="sensor-2" class="signal-bar" title="AF8"></div>
+                    <div id="sensor-3" class="signal-bar" title="TP10"></div>
+                </div>
+
+                <button class="btn-connect" id="scanBtn">🔍 Connect Sensor</button>
+                <div id="deviceStats"
+                    style="display:none; margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px;">
+                        <span id="deviceName">Muse-2</span> • 🔋 <span id="batteryLevel">--%</span>
+                    </div>
+                    <button class="btn-secondary" id="disconnectBtn"
+                        style="width: 100%; font-size: 11px; padding: 6px;">❌ Disconnect</button>
+                    <div id="wearMuseAlert"
+                        style="display:none; color: #ff4444; font-size: 10px; margin-top: 5px; font-weight: bold;">⚠️
+                        POOR FIT: ADJUST MUSE</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="session-info">
+                    <h1 class="session-title">Flow<span>State</span></h1>
+                    <div style="font-size: 13px; color: var(--text-secondary);">Therapeutic Monitor</div>
+                    <div id="neuroStateBadge"
+                        style="margin-left: 20px; padding: 4px 12px; background: rgba(45, 212, 191, 0.1); border: 1px solid var(--therapeutic-teal); border-radius: 20px; font-size: 11px; font-weight: 600; color: var(--therapeutic-teal); letter-spacing: 1px; display: none;">
+                        CALIBRATING...
+                    </div>
+                </div>
+
+                <div class="session-controls">
+                    <!-- Toggles Removed -->
+                    <button class="btn-primary" onclick="startSession()">🔴 REC</button>
+                </div>
+            </header>
+
+            <!-- Tab Content Wrapper -->
+            <div class="tab-content-wrapper">
+                <!-- Monitor Tab -->
+                <div class="tab-panel active" data-panel="monitor">
+                    <!-- Metrics Grid -->
+                    <div class="card-grid">
+                        <div class="metric-card" style="animation-delay: 0.1s;">
+                            <div class="card-header">Relative Focus</div>
+                            <div class="card-value" id="focusValue">0<span class="card-unit">%</span></div>
+                            <div class="card-status">Alpha Dominance</div>
+                        </div>
+
+                        <div class="metric-card" style="animation-delay: 0.2s;">
+                            <div class="card-header">Heart Rate</div>
+                            <div class="card-value" id="bpmValue">--<span class="card-unit">BPM</span></div>
+                            <div class="card-status">HRV: <span id="hrvValue">--</span> ms</div>
+                        </div>
+
+                        <div class="metric-card" style="animation-delay: 0.3s;">
+                            <div class="card-header">Fatigue Index</div>
+                            <div class="card-value" id="blinkValue">0<span class="card-unit">/min</span></div>
+                            <div class="card-status">Normal Range</div>
+                        </div>
+
+                        <div class="metric-card" style="animation-delay: 0.4s;">
+                            <div class="card-header">MOOD INDEX</div>
+                            <div class="card-value" id="valenceValue">--</div>
+                            <div class="card-status" id="valenceLabel">Calibrating...</div>
+                        </div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="chart-section">
+                        <div class="chart-header">
+                            <span>EEG Frequency Bands</span>
+                            <span style="font-size: 11px; font-weight: 400;">Live Stream</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="focusChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-section">
+                        <div class="chart-header">
+                            <span>Spectral Power Density</span>
+                        </div>
+                        <div class="chart-container" style="height: 200px;">
+                            <canvas id="spectrumChart"></canvas>
+                        </div>
+                        <div class="chart-section">
+                            <div class="chart-header">
+                                <span>Head Motion (Gyro)</span>
+                                <span style="font-size: 11px; font-weight: 400;">Pitch & Roll</span>
+                            </div>
+                            <div class="chart-container" style="height: 150px;">
+                                <canvas id="gyroChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analytics Tab -->
+                    <div class="tab-panel" data-panel="analytics">
+                        <h2 style="font-size: 24px; margin-bottom: 24px;">Session Analytics</h2>
+
+                        <!-- Session History Chart -->
+                        <div class="chart-section">
+                            <div class="chart-header">
+                                <span>Focus History</span>
+                                <span style="font-size: 11px; font-weight: 400;">Last 10 Sessions</span>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="historyChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Stats Grid -->
+                        <div class="card-grid" style="grid-template-columns: repeat(2, 1fr);">
+                            <div class="metric-card">
+                                <div class="card-header">Total Sessions</div>
+                                <div class="card-value" id="totalSessions">0</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="card-header">Avg Focus</div>
+                                <div class="card-value" id="avgFocus">0<span class="card-unit">%</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Insights Tab -->
+                    <div class="tab-panel" data-panel="insights">
+                        <h2 style="font-size: 24px; margin-bottom: 24px;">AI Insights</h2>
+                        <div class="metric-card">
+                            <div class="card-header">AI Coaching</div>
+                            <p style="color: var(--text-secondary); line-height: 1.6;">
+                                Personalized meditation guidance and neurofeedback coaching will appear here when AI
+                                Guide
+                                is enabled.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Settings Tab -->
+                    <div class="tab-panel" data-panel="settings">
+                        <h2 style="font-size: 24px; margin-bottom: 24px;">Settings</h2>
+
+                        <!-- AI Configuration -->
+                        <div class="metric-card" style="margin-bottom: 24px;">
+                            <div class="card-header">🧠 AI Coach Configuration</div>
+                            <div style="margin-top: 12px;">
+                                <label
+                                    style="display: block; color: var(--text-secondary); margin-bottom: 8px; font-size: 13px;">Google
+                                    Gemini API Key</label>
+                                <div style="display: flex; gap: 10px;">
+                                    <input type="password" id="apiKeyInput" placeholder="AIzaVy..."
+                                        style="flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: var(--text-primary); padding: 10px; border-radius: 8px; font-family: 'JetBrains Mono';">
+                                    <button class="btn-primary" onclick="saveSettings()"
+                                        style="width: auto; padding: 0 24px;">Save</button>
+                                </div>
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+                                    Required for smart insights. Key is saved locally.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Device Configuration -->
+                        <div class="metric-card">
+                            <div class="card-header">⚡ Signal Filters</div>
+                            <div
+                                style="margin-top: 12px; display: flex; align-items: center; justify-content: space-between;">
+                                <div>
+                                    <div style="color: var(--text-primary); font-weight: 500;">Power Grid Frequency
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">Select based on your
+                                        location to remove hum.</div>
+                                </div>
+                                <select id="notchSelect" onchange="saveSettings()"
+                                    style="background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: var(--text-primary); padding: 8px 12px; border-radius: 8px;">
+                                    <option value="50">50Hz (India/EU)</option>
+                                    <option value="60">60Hz (US/Japan)</option>
+                                    <option value="dual">Dual (Global)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Calibration Config -->
+                        <div class="metric-card">
+                            <div class="card-header">🧠 Brain Baseline</div>
+                            <div
+                                style="margin-top: 12px; display: flex; align-items: center; justify-content: space-between;">
+                                <div>
+                                    <div style="color: var(--text-primary); font-weight: 500;">Clinical Calibration
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">30s scan to personalize
+                                        your stress model.</div>
+                                </div>
+                                <button class="btn-primary" onclick="startCalibration()"
+                                    style="width: auto; padding: 8px 16px; background: var(--therapeutic-teal);">Start
+                                    Learning</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+        </main>
+    </div>
+
+    <!-- Bluetooth Scan Modal -->
+    <div class="modal-overlay" id="scanModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Select Muse Device</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="deviceList">
+                <div style="text-align: center; color: var(--text-secondary); padding: 40px 20px;">
+                    Searching for devices...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Breath Pacer Overlay -->
+    <div id="breathPacerOverlay" class="hidden"
+        style="position: fixed; bottom: 32px; right: 32px; width: 150px; height: 150px; background: var(--glass-bg); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; box-shadow: var(--shadow-soft);">
+        <div style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px;">PACER</div>
+        <div id="breathCircle"
+            style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, var(--therapeutic-teal), var(--calm-sky)); transition: transform 0.05s linear; box-shadow: 0 0 20px rgba(45, 212, 191, 0.4);">
+        </div>
+        <div id="breathText"
+            style="font-size: 12px; margin-top: 12px; font-weight: 600; color: var(--therapeutic-teal);">READY</div>
+    </div>
+
+    <!-- CALIBRATION OVERLAY -->
+    <div id="calibrationOverlay" class="glass-panel"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.98);">
+        <h2 style="color: var(--therapeutic-teal); font-size: 32px; margin-bottom: 20px;">🧠 Learning Your Brain...</h2>
+        <div
+            style="text-align: center; color: var(--text-secondary); margin-bottom: 40px; font-size: 18px; line-height: 1.6;">
+            Sit comfortably.<br>
+            Relax your jaw.<br>
+            Keep your eyes open and focus on a point.<br>
+            <span style="color: #F43F5E; font-size: 14px; margin-top: 10px; display: block;">Do not speak or
+                move.</span>
+        </div>
+
+        <div
+            style="width: 300px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 30px;">
+            <div id="calibProgress"
+                style="width: 0%; height: 100%; background: var(--therapeutic-teal); transition: width 0.5s ease;">
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 20px;">
+            <button class="btn-secondary" onclick="cancelCalibration()">Cancel</button>
+        </div>
+    </div>
+
+    <script src="dashboard_therapeutic.js"></script>
+
+    <!-- PHASE 6: Connection Control (Embedded for Offline Use) -->
+    <style>
+        #connectionOverlay {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+            background: rgba(10, 46, 77, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(45, 212, 191, 0.3);
+            border-radius: 16px;
+            padding: 20px 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            min-width: 280px;
+            animation: slideIn 0.4s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        #connectionStatus {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #statusIndicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #94A3B8;
+        }
+
+        #statusIndicator.idle {
+            background: #94A3B8;
+        }
+
+        #statusIndicator.scanning {
+            background: #FCD34D;
+            animation: pulse 1.5s infinite;
+        }
+
+        #statusIndicator.connected {
+            background: #86EFAC;
+        }
+
+        #statusIndicator.error {
+            background: #EF4444;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        #connectBtn {
+            width: 100%;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #2DD4BF 0%, #14B8A6 100%);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #connectBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(45, 212, 191, 0.4);
+        }
+
+        #connectBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #statusMessage {
+            margin-top: 10px;
+            font-size: 11px;
+            color: #94A3B8;
+            text-align: center;
+        }
+    </style>
+    <div id="connectionOverlay">
+        <div id="connectionStatus">
+            <div id="statusIndicator" class="idle"></div><span id="statusText">Ready</span>
+        </div><button id="connectBtn">Connect Muse</button>
+        <div id="statusMessage"></div>
+    </div>
+    <script>
+        const API_BASE = 'http://localhost:5001'; let connectionState = 'idle', statusCheckInterval = null; const $indicator = document.getElementById('statusIndicator'), $statusText = document.getElementById('statusText'), $connectBtn = document.getElementById('connectBtn'), $statusMessage = document.getElementById('statusMessage'); function updateUI(state, message = '') { connectionState = state; $indicator.className = state; switch (state) { case 'idle': $statusText.textContent = 'Ready'; $connectBtn.textContent = 'Connect Muse'; $connectBtn.disabled = false; $statusMessage.textContent = ''; break; case 'scanning': $statusText.textContent = 'Scanning...'; $connectBtn.textContent = 'Searching...'; $connectBtn.disabled = true; $statusMessage.textContent = 'Looking for Muse headset...'; break; case 'connected': $statusText.textContent = 'Connected'; $connectBtn.textContent = 'Disconnect'; $connectBtn.disabled = false; $statusMessage.textContent = '✓ Live data streaming'; break; case 'error': $statusText.textContent = 'Not Found'; $connectBtn.textContent = 'Try Again'; $connectBtn.disabled = false; $statusMessage.textContent = message || 'Please turn on your Muse'; break; } } $connectBtn.addEventListener('click', async () => { if (connectionState === 'connected') { try { await fetch(`${API_BASE}/api/system/disconnect`); updateUI('idle'); } catch (err) { console.error('Disconnect failed:', err); } } else { updateUI('scanning'); try { const res = await fetch(`${API_BASE}/api/system/connect`), data = await res.json(); if (data.status === 'scanning') { startStatusPolling(); } } catch (err) { updateUI('error', 'Backend not responding'); } } }); function startStatusPolling() { if (statusCheckInterval) clearInterval(statusCheckInterval); statusCheckInterval = setInterval(async () => { try { const res = await fetch(`${API_BASE}/api/system/status`), data = await res.json(), state = data.connection_state || 'idle'; if (state === 'connected') { updateUI('connected'); clearInterval(statusCheckInterval); statusCheckInterval = null; } else if (state === 'error') { updateUI('error', 'Muse not found'); clearInterval(statusCheckInterval); statusCheckInterval = null; } else if (state === 'idle' && connectionState === 'scanning') { updateUI('error', 'Connection timeout'); clearInterval(statusCheckInterval); statusCheckInterval = null; } } catch (err) { console.error('Status check failed:', err); } }, 1000); } updateUI('idle');
+    </script>
+</body>
+
+</html>

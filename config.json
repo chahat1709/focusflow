@@ -1,0 +1,22 @@
+{
+    "version": "1.1",
+    "build_date": "2026-02-08",
+    "backend": {
+        "port": 5001,
+        "host": "localhost"
+    },
+    "features": {
+        "ai_coach": false,
+        "calibration": true,
+        "recording": true
+    },
+    "theme": {
+        "primary_color": "#2DD4BF",
+        "secondary_color": "#7DD3FC",
+        "app_name": "Focus Flow"
+    },
+    "recording": {
+        "output_folder": "./recordings",
+        "auto_flush_interval": 1.0
+    }
+}

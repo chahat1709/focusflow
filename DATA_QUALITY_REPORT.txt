@@ -1,0 +1,51 @@
+======================================================================
+MUSE DATA QUALITY REPORT
+Timestamp: 2026-02-01 17:49:36
+======================================================================
+
+[1] RAW LSL STREAM ANALYSIS
+----------------------------------------------------------------------
+Device Name: Muse
+Sample Rate: 256.0 Hz
+Channel Count: 4
+Data Type: 1
+
+Collecting 20 samples...
+Captured: 20 samples
+
+Statistical Analysis (microvolts):
+Channel    Mean      Std Dev   Min       Max       Variance
+----------------------------------------------------------------------
+Ch1      -135.30    135.13   -325.00    187.00    18260.41
+Ch2       -10.30     34.44   -109.00     29.00     1186.11
+Ch3      -205.75     51.04   -257.00   -108.00     2605.29
+Ch4       -92.60     62.15   -161.00     -1.00     3863.04
+
+Quality Checks:
+  Ch1: EXCESSIVE NOISE (variance=18260.4) - Bad contact?
+  Ch2: NORMAL (variance=1186.1)
+  Ch3: NORMAL (variance=2605.3)
+  Ch4: NORMAL (variance=3863.0)
+
+Timestamp Precision:
+  Expected interval: 3.91 ms (256 Hz)
+  Measured average: 9.68 ms
+  Jitter (std dev): 15.02 ms
+  Min interval: 0.11 ms
+  Max interval: 43.76 ms
+  WARNING: High jitter - unstable connection
+
+[2] BACKEND API ANALYSIS
+----------------------------------------------------------------------
+Connection Status: True
+Focus Score: 0.159768
+Heart Rate: 0 BPM
+
+EEG Channels (current):
+ERROR in API analysis: Unknown format code 'f' for object of type 'str'
+
+======================================================================
+FINAL ASSESSMENT
+======================================================================
+VERDICT: DATA APPEARS GENUINE
+Reason: Signal variance is within normal range (6478.7)

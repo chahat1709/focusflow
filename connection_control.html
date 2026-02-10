@@ -1,0 +1,224 @@
+<!-- Connection Control Overlay (Phase 6: Professional UX) -->
+<style>
+    #connectionOverlay {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 2000;
+        background: rgba(10, 46, 77, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(45, 212, 191, 0.3);
+        border-radius: 16px;
+        padding: 20px 24px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        min-width: 280px;
+        animation: slideIn 0.4s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    #connectionStatus {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    #statusIndicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #94A3B8;
+    }
+
+    #statusIndicator.idle {
+        background: #94A3B8;
+    }
+
+    #statusIndicator.scanning {
+        background: #FCD34D;
+        animation: pulse 1.5s infinite;
+    }
+
+    #statusIndicator.connected {
+        background: #86EFAC;
+    }
+
+    #statusIndicator.error {
+        background: #EF4444;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.3;
+        }
+    }
+
+    #connectBtn {
+        width: 100%;
+        padding: 12px 20px;
+        background: linear-gradient(135deg, #2DD4BF 0%, #14B8A6 100%);
+        border: none;
+        border-radius: 10px;
+        color: white;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    #connectBtn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(45, 212, 191, 0.4);
+    }
+
+    #connectBtn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    #statusMessage {
+        margin-top: 10px;
+        font-size: 11px;
+        color: #94A3B8;
+        text-align: center;
+    }
+</style>
+
+<div id="connectionOverlay">
+    <div id="connectionStatus">
+        <div id="statusIndicator" class="idle"></div>
+        <span id="statusText">Ready</span>
+    </div>
+    <button id="connectBtn">Connect Muse</button>
+    <div id="statusMessage"></div>
+</div>
+
+<script>
+    // PHASE 6: Connection Control Logic
+    const API_BASE = 'http://localhost:5001';
+    let connectionState = 'idle';
+    let statusCheckInterval = null;
+
+    const $indicator = document.getElementById('statusIndicator');
+    const $statusText = document.getElementById('statusText');
+    const $connectBtn = document.getElementById('connectBtn');
+    const $statusMessage = document.getElementById('statusMessage');
+
+    // Update UI based on state
+    function updateUI(state, message = '') {
+        connectionState = state;
+        $indicator.className = state;
+
+        switch (state) {
+            case 'idle':
+                $statusText.textContent = 'Ready';
+                $connectBtn.textContent = 'Connect Muse';
+                $connectBtn.disabled = false;
+                $statusMessage.textContent = '';
+                break;
+            case 'scanning':
+                $statusText.textContent = 'Scanning...';
+                $connectBtn.textContent = 'Searching...';
+                $connectBtn.disabled = true;
+                $statusMessage.textContent = 'Looking for Muse headset...';
+                break;
+            case 'connected':
+                $statusText.textContent = 'Connected';
+                $connectBtn.textContent = 'Disconnect';
+                $connectBtn.disabled = false;
+                $statusMessage.textContent = '✓ Live data streaming';
+                break;
+            case 'error':
+                $statusText.textContent = 'Not Found';
+                $connectBtn.textContent = 'Try Again';
+                $connectBtn.disabled = false;
+                $statusMessage.textContent = message || 'Please turn on your Muse';
+                break;
+        }
+    }
+
+    // Connect/Disconnect handler
+    $connectBtn.addEventListener('click', async () => {
+        if (connectionState === 'connected') {
+            // Disconnect
+            try {
+                await fetch(`${API_BASE}/api/system/disconnect`);
+                updateUI('idle');
+            } catch (err) {
+                console.error('Disconnect failed:', err);
+            }
+        } else {
+            // Connect
+            updateUI('scanning');
+            try {
+                const res = await fetch(`${API_BASE}/api/system/connect`);
+                const data = await res.json();
+
+                if (data.status === 'scanning') {
+                    // Start polling for connection result
+                    startStatusPolling();
+                }
+            } catch (err) {
+                updateUI('error', 'Backend not responding');
+            }
+        }
+    });
+
+    // Poll connection status
+    function startStatusPolling() {
+        if (statusCheckInterval) clearInterval(statusCheckInterval);
+
+        statusCheckInterval = setInterval(async () => {
+            try {
+                const res = await fetch(`${API_BASE}/api/system/status`);
+                const data = await res.json();
+
+                const state = data.connection_state || 'idle';
+
+                if (state === 'connected') {
+                    updateUI('connected');
+                    clearInterval(statusCheckInterval);
+                    statusCheckInterval = null;
+                } else if (state === 'error') {
+                    updateUI('error', 'Muse not found');
+                    clearInterval(statusCheckInterval);
+                    statusCheckInterval = null;
+                } else if (state === 'idle' && connectionState === 'scanning') {
+                    // Scanning stopped without success
+                    updateUI('error', 'Connection timeout');
+                    clearInterval(statusCheckInterval);
+                    statusCheckInterval = null;
+                }
+            } catch (err) {
+                console.error('Status check failed:', err);
+            }
+        }, 1000);
+    }
+
+    // Initialize
+    updateUI('idle');
+</script>

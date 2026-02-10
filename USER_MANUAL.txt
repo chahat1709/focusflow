@@ -1,0 +1,209 @@
+════════════════════════════════════════════════════════════════
+FOCUS FLOW v1.1 - USER MANUAL
+Complete Guide for Neurofeedback Sessions
+════════════════════════════════════════════════════════════════
+
+📖 TABLE OF CONTENTS
+───────────────────────────────────────────────────────────────
+1. Getting Started
+2. First Time Setup
+3. Using Focus Flow
+4. Recording Sessions
+5. Troubleshooting
+6. Support
+
+════════════════════════════════════════════════════════════════
+1. GETTING STARTED
+════════════════════════════════════════════════════════════════
+
+What You Need:
+✓ Windows 10 or Windows 11 PC
+✓ Muse 2 or Muse S headset
+✓ Bluetooth enabled on your PC
+
+What You Received:
+📦 FocusFlow.exe - Main application
+📦 config.json - Settings file (don't delete)
+📄 This manual
+
+════════════════════════════════════════════════════════════════
+2. FIRST TIME SETUP
+════════════════════════════════════════════════════════════════
+
+Step 1: Install the App
+───────────────────────────────────────────────────────────────
+1. Create a folder on your Desktop called "FocusFlow"
+2. Move FocusFlow.exe and config.json into this folder
+3. Done! No installation needed.
+
+Step 2: Prepare Your Muse Headset
+───────────────────────────────────────────────────────────────
+1. Charge your Muse headset fully
+2. Turn ON the headset (LED should blink)
+3. Make sure Bluetooth is ON in Windows Settings
+
+Step 3: Run Focus Flow
+───────────────────────────────────────────────────────────────
+1. Double-click "FocusFlow.exe"
+2. Wait 5-10 seconds for the app to load
+3. Your web browser will open automatically
+4. You'll see the Focus Flow dashboard
+
+IMPORTANT: Keep the browser window open while using the app!
+
+════════════════════════════════════════════════════════════════
+3. USING FOCUS FLOW
+════════════════════════════════════════════════════════════════
+
+Understanding the Dashboard
+───────────────────────────────────────────────────────────────
+When you open Focus Flow, you'll see:
+
+🧠 Left Sidebar - Navigation menu
+📊 Center Area - Real-time brain data graphs
+🔌 Top-Right Corner - "Connect Muse" button
+
+Connecting Your Headset
+───────────────────────────────────────────────────────────────
+1. Put on your Muse headset (adjust for comfort)
+2. Click the "Connect Muse" button (top-right)
+3. Wait while it searches (you'll see "Scanning...")
+4. When connected, button will say "Disconnect"
+5. You'll see live brain wave graphs
+
+What the Status Means:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Status          | What It Means
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Ready           | App is waiting for you to click "Connect"
+Scanning...     | Looking for your Muse headset
+Connected ✓     | Live data streaming!
+Not Found       | Headset not detected (see Troubleshooting)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Reading Your Brain Data
+───────────────────────────────────────────────────────────────
+Focus Score: 0-100 (higher = better focus)
+Heart Rate: Your current BPM
+Signal Quality: Good/Adjust/Poor (check headset fit)
+
+Green = Good signal quality
+Yellow = Adjust headset position
+Red = Poor contact, re-position sensors
+
+════════════════════════════════════════════════════════════════
+4. RECORDING SESSIONS
+════════════════════════════════════════════════════════════════
+
+How to Record Your Brain Activity
+───────────────────────────────────────────────────────────────
+1. Click "Connect Muse" and wait for connection
+2. Click "Start Recording" button
+3. Do your focus activity (meditation, study, etc.)
+4. Click "Stop Recording" when done
+
+Where Your Data is Saved
+───────────────────────────────────────────────────────────────
+All recordings are saved in:
+FocusFlow\recordings\
+
+Files are named by date/time:
+Example: session_2026-02-08_14-30-45.csv
+
+You can open these files in Excel to analyze your data.
+
+════════════════════════════════════════════════════════════════
+5. TROUBLESHOOTING
+════════════════════════════════════════════════════════════════
+
+Problem: "Not Found" Error
+───────────────────────────────────────────────────────────────
+Solutions:
+✓ Turn headset OFF, then ON again
+✓ Check if Bluetooth is enabled on your PC
+✓ Move headset closer to computer (within 3 meters)
+✓ Click "Try Again" button
+✓ Restart FocusFlow.exe
+
+Problem: App Won't Open
+───────────────────────────────────────────────────────────────
+Solutions:
+✓ Right-click FocusFlow.exe → "Run as Administrator"
+✓ Check Windows Firewall isn't blocking it
+✓ Make sure config.json is in the same folder
+
+Problem: No Data Showing
+───────────────────────────────────────────────────────────────
+Solutions:
+✓ Adjust headset - sensors must touch your skin
+✓ Wipe sensors with slightly damp cloth
+✓ Check Signal Quality indicators (should be green)
+✓ Disconnect and reconnect headset
+
+Problem: Browser Opens But Shows Error
+───────────────────────────────────────────────────────────────
+Solutions:
+✓ Wait 10 seconds and refresh the page (F5)
+✓ Close browser and run FocusFlow.exe again
+✓ Check focus_flow.log file for error details
+
+════════════════════════════════════════════════════════════════
+6. SUPPORT & MAINTENANCE
+════════════════════════════════════════════════════════════════
+
+Error Logs
+───────────────────────────────────────────────────────────────
+If something goes wrong, the app creates a log file:
+focus_flow.log
+
+Send this file to your support contact for help.
+
+Updating the App
+───────────────────────────────────────────────────────────────
+When you receive an update:
+1. Close Focus Flow completely
+2. Replace old FocusFlow.exe with new one
+3. Keep the same config.json file
+4. Run the new FocusFlow.exe
+
+Uninstalling
+───────────────────────────────────────────────────────────────
+To remove Focus Flow:
+1. Close the app
+2. Delete the FocusFlow folder
+3. Done! No registry cleanup needed.
+
+════════════════════════════════════════════════════════════════
+QUICK REFERENCE CARD
+════════════════════════════════════════════════════════════════
+
+Daily Workflow:
+1. Turn ON Muse headset
+2. Double-click FocusFlow.exe
+3. Click "Connect Muse"
+4. Wait for "Connected ✓"
+5. Start your session
+6. Click "Start Recording" (optional)
+7. Do your activity
+8. Click "Stop Recording"
+9. Close browser to exit
+
+System Requirements:
+• Windows 10/11
+• Bluetooth 4.0+
+• 4GB RAM
+• 500MB free space
+
+File Locations:
+• App: FocusFlow.exe
+• Settings: config.json
+• Sessions: recordings/
+• Logs: focus_flow.log
+
+Support:
+• Check focus_flow.log for errors
+• Contact your provider with log file
+
+════════════════════════════════════════════════════════════════
+© 2026 Focus Flow v1.1 | Precision Neurofeedback System
+════════════════════════════════════════════════════════════════

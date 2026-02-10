@@ -1,0 +1,8 @@
+flask
+flask-cors
+pylsl
+bleak
+python-osc
+numpy
+scipy
+pygame
