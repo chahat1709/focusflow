@@ -59,26 +59,19 @@ def main():
     print(">> Waiting for services to warm up...")
     time.sleep(3)  # Wait for server to start
     
-    # 4. Launch Dashboard
-    url = "http://localhost:5001"  # Flask backend serves dashboard
-    print(f">> Opening Dashboard: {url}")
+    # 4. Launch Dashboard (Native Window Mode)
+    url = "http://localhost:5001"
+    print(f">> Opening App Window: {url}")
     
-    try:
-        webbrowser.open(url)
-    except Exception as e:
-        print(f"Could not auto-open browser. Please visit: {url}")
+    import webview
+    webview.create_window('Focus Flow', url, width=1200, height=800, confirm_close=True)
+    webview.start(debug=False)
     
     print("\n>> SYSTEM ONLINE (PROFESSIONAL MODE)")
-    print(">> Use the dashboard to connect to your Muse.")
-
     
-    # 5. Keep Alive
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print(">> Shutting down...")
-        sys.exit(0)
+    # When window closes, we exit
+    print(">> App closed. Shutting down...")
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()
