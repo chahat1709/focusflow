@@ -45,9 +45,11 @@ jobs:
     
     - name: Build Professional Installer with Inno Setup
       run: |
-        # Download Inno Setup
-        Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile "innosetup.exe"
-        Start-Process -FilePath "innosetup.exe" -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
+        # Use Chocolatey to install Inno Setup (Faster & Reliable)
+        choco install innosetup --no-progress
+        
+        # Add to PATH (refreshenv doesn't always work in GitHub Actions sub-shell, so use direct path)
+        $env:Path += ";C:\Program Files (x86)\Inno Setup 6"
         
         # Compile the installer
         & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
