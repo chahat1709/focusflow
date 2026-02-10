@@ -49,23 +49,28 @@ def main():
     
     # 2. Start Backend Server (Port 5001) - Pass streamer reference
     print(">> Starting Backend Server...")
-    from src.backend import main as backend_main
-    backend_main._streamer_instance = _streamer_instance  # Inject streamer
-    
-    server_thread = threading.Thread(target=start_server, daemon=True)
+    server_thread = threading.Thread(
+        target=lambda: start_server(get_streamer),
+        daemon=True
+    )
     server_thread.start()
     
     # 3. Wait for initialization
     print(">> Waiting for services to warm up...")
-    time.sleep(5)  # Increased wait time
+    time.sleep(3)  # Wait for server to start
     
     # 4. Launch Dashboard
-    dashboard_path = os.path.abspath("dashboard.html")
-    print(f">> Opening Dashboard: {dashboard_path}")
-    webbrowser.open(f"file:///{dashboard_path}")
+    url = "http://localhost:5001"  # Flask backend serves dashboard
+    print(f">> Opening Dashboard: {url}")
+    
+    try:
+        webbrowser.open(url)
+    except Exception as e:
+        print(f"Could not auto-open browser. Please visit: {url}")
     
     print("\n>> SYSTEM ONLINE (PROFESSIONAL MODE)")
     print(">> Use the dashboard to connect to your Muse.")
+
     
     # 5. Keep Alive
     try:
