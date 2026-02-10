@@ -64,8 +64,25 @@ def main():
     print(f">> Opening App Window: {url}")
     
     import webview
-    webview.create_window('Focus Flow', url, width=1200, height=800, confirm_close=True)
-    webview.start(debug=False)
+    
+    # Create a professional app window
+    # - Resizable: True
+    # - On Top: False
+    # - Frameless: False (standard window)
+    window = webview.create_window(
+        title='Focus Flow - Professional', 
+        url=url, 
+        width=1280, 
+        height=850, 
+        resizable=True,
+        confirm_close=True,
+        text_select=False,  # Disable text selection (app feel)
+        zoomable=False      # Disable zooming
+    )
+    
+    # Start the GUI loop
+    # gui='edgechromium' forces the modern engine if available
+    webview.start(debug=False, http_server=True)
     
     print("\n>> SYSTEM ONLINE (PROFESSIONAL MODE)")
     
