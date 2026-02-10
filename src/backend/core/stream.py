@@ -15,10 +15,10 @@ class BeastStreamer(threading.Thread):
         self.connected = False
         self.silence_counter = 0  # Watchdog counter
         self.last_scan_time = 0
-        print("🦍 BEAST STREAMER: Initialized (Multi-Sensor Mode).")
+        print(">> BEAST STREAMER: Initialized (Multi-Sensor Mode).")
 
     def run(self):
-        self.log("🦍 BEAST STREAMER: Thread Started.")
+        self.log(">> BEAST STREAMER: Thread Started.")
         
         while self.running:
             # ---------------------------------------------------------
