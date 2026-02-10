@@ -42,6 +42,21 @@ jobs:
       with:
         name: FocusFlow-Windows-EXE
         path: FocusFlow_Release/
+    
+    - name: Build Professional Installer with Inno Setup
+      run: |
+        # Download Inno Setup
+        Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile "innosetup.exe"
+        Start-Process -FilePath "innosetup.exe" -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
+        
+        # Compile the installer
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+        
+    - name: Upload Installer Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: FocusFlow-Setup-Installer
+        path: installer_output/FocusFlow_Setup.exe
         
     - name: Create GitHub Release (if tag)
       if: startsWith(github.ref, 'refs/tags/')
@@ -49,14 +64,18 @@ jobs:
       with:
         files: |
           dist/FocusFlow.exe
+          installer_output/FocusFlow_Setup.exe
         body: |
           ## Focus Flow - Professional EEG Monitor
           
+          **Installation Options:**
+          1. **Recommended:** Download `FocusFlow_Setup.exe` and run the installer wizard
+         2. **Portable:** Download `FocusFlow.exe` (single file, no installation)
+          
           **How to use:**
-          1. Download `FocusFlow.exe`
-          2. Double-click to run
-          3. Click "Connect Muse" button
-          4. Start monitoring!
+          1. Double-click to launch
+          2. Click "Connect Muse" button
+          3. Start monitoring!
           
           **System Requirements:**
           - Windows 10/11
