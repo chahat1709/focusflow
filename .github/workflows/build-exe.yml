@@ -28,7 +28,7 @@ jobs:
         
     - name: Build EXE with PyInstaller
       run: |
-        pyinstaller --onefile --noconsole --name="FocusFlow" --icon=assets/icon.ico --add-data "assets;assets" --add-data "src;src" start_app_monolith.py
+        pyinstaller --onefile --noconsole --name="FocusFlow" --add-data "assets;assets" --add-data "src;src" --hidden-import=flask --hidden-import=pylsl start_app_monolith.py
         
     - name: Create Release Package
       run: |
