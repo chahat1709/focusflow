@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import threading
 import time
 import webbrowser
@@ -35,11 +36,11 @@ def get_streamer():
     return _streamer_instance
 
 def main():
-    print("🦍 BEAST LAUNCHER: MONOLITHIC MODE (Professional)")
+    print("FOCUS FLOW LAUNCHER: Professional Mode")
     print("-----------------------------------")
     
     # 1. Start Muse Streamer (Silent - no auto-scan)
-    print("🚀 Starting Muse Service (Idle)...")
+    print(">> Starting Muse Service (Idle)...")
     stream_thread = threading.Thread(target=run_streamer_thread, daemon=True)
     stream_thread.start()
     
@@ -47,7 +48,7 @@ def main():
     time.sleep(2)
     
     # 2. Start Backend Server (Port 5001) - Pass streamer reference
-    print("🚀 Starting Backend Server...")
+    print(">> Starting Backend Server...")
     from src.backend import main as backend_main
     backend_main._streamer_instance = _streamer_instance  # Inject streamer
     
@@ -55,23 +56,23 @@ def main():
     server_thread.start()
     
     # 3. Wait for initialization
-    print("⏳ Waiting for services to warm up...")
+    print(">> Waiting for services to warm up...")
     time.sleep(5)  # Increased wait time
     
     # 4. Launch Dashboard
     dashboard_path = os.path.abspath("dashboard.html")
-    print(f"🚀 Opening Dashboard: {dashboard_path}")
+    print(f">> Opening Dashboard: {dashboard_path}")
     webbrowser.open(f"file:///{dashboard_path}")
     
-    print("\n✅ SYSTEM ONLINE (PROFESSIONAL MODE)")
-    print("👉 Use the dashboard to connect to your Muse.")
+    print("\n>> SYSTEM ONLINE (PROFESSIONAL MODE)")
+    print(">> Use the dashboard to connect to your Muse.")
     
     # 5. Keep Alive
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print("🛑 Shutting down...")
+        print(">> Shutting down...")
         sys.exit(0)
 
 if __name__ == "__main__":
