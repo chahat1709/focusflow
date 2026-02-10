@@ -32,11 +32,10 @@ jobs:
         
     - name: Create Release Package
       run: |
-        mkdir FocusFlow_Release
-        copy dist\FocusFlow.exe FocusFlow_Release\
-        copy README_CLIENT.md FocusFlow_Release\README.txt
-        echo. > FocusFlow_Release\DOUBLE_CLICK_TO_START.txt
-        echo Just double-click FocusFlow.exe to launch the app! >> FocusFlow_Release\DOUBLE_CLICK_TO_START.txt
+        New-Item -ItemType Directory -Path FocusFlow_Release -Force
+        Copy-Item dist\FocusFlow.exe FocusFlow_Release\
+        Copy-Item README_CLIENT.md FocusFlow_Release\README.txt
+        "Just double-click FocusFlow.exe to launch the app!" | Out-File -FilePath FocusFlow_Release\INSTRUCTIONS.txt
         
     - name: Upload EXE Artifact
       uses: actions/upload-artifact@v4
