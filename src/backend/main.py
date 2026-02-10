@@ -515,27 +515,32 @@ if __name__ == "__main__":
         t.join(timeout=1)
         if autopilot: autopilot.stop_stream()
         print("✅ Shutdown Complete.")
-def start_server():
+def start_server(streamer_getter=None, port=None):
     """Entry point for the monolithic launcher"""
+    global _streamer_instance
+    if streamer_getter:
+        _streamer_instance = streamer_getter
+        
     atexit.register(cleanup)
-    # Start Flask
-    port = int(os.environ.get('PORT', 5001))
-    threading.Thread(target=lambda: app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)).start()
     
-    print(f"\n🚀 SENSOR LINK ACTIVE on http://localhost:{port}")
+    # Use provided port, environment variable, or default to 5001
+    if port is None:
+        port = int(os.environ.get('PORT', 5001))
+    
+    print(f"\n>> SENSOR LINK ACTIVE on http://localhost:{port}")
     print("   (Medical Core Online)")
     
-    print("🚀 ENTERPRISE SERVER STARTED (HEADLESS)")
+    print(">> ENTERPRISE SERVER STARTED (HEADLESS)")
     
     # Start Muse Streamer
     # Allow imports to work
     sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     
-    print("🚀 Starting Backend Server on Port 5001...")
+    print(f">> Starting Backend Server on Port {port}...")
     
     # Run server without threading first to test
     # Re-enable debug=True for better error visibility if needed, but False for production
-    socketio.run(app, host='0.0.0.0', port=5001, debug=False, allow_unsafe_werkzeug=True)
+    socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
 
 if __name__ == '__main__':
     start_server()
