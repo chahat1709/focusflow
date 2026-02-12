@@ -18,9 +18,19 @@ _streamer_instance = None
 # FIX FOR FROZEN NO-CONSOLE APPS
 # PyInstaller noconsole mode crashes web servers that try to print to stdout
 if getattr(sys, 'frozen', False):
-    # Redirect stdout/stderr to null or log file
-    sys.stdout = open(os.devnull, 'w')
-    sys.stderr = open(os.devnull, 'w')
+    try:
+        # Use TEMP directory (always exists and writable)
+        log_file = os.path.join(os.environ.get('TEMP', '.'), 'FocusFlow_debug.log')
+        
+        # Redirect stdout/stderr to log file
+        sys.stdout = open(log_file, 'w', buffering=1)
+        sys.stderr = open(log_file, 'w', buffering=1)
+        print(f"=== FocusFlow Debug Log ===")
+        print(f"Started at {time.ctime()}")
+        print(f"Log file: {log_file}")
+    except Exception as e:
+        # If logging fails, continue without it (better than crashing)
+        pass
 
 def find_free_port():
     """Find an available port dynamically"""
