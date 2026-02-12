@@ -41,6 +41,11 @@ except ImportError:
 app = Flask(__name__)
 CORS(app)
 
+# Initialize SocketIO (Required for socketio.run)
+# Force threading mode for compatibility with PyWebView/PyInstaller
+from flask_socketio import SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
 # --- INIT COACH ---
 coach_type = "offline"
 coach = OfflineCoach()
