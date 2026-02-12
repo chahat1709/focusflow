@@ -1,7 +1,6 @@
 flask
 flask-cors
 flask-socketio
-eventlet
 pylsl
 bleak
 python-osc
