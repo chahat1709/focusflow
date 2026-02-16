@@ -1,4 +1,5 @@
 
+import sys
 import threading
 import time
 import os
@@ -6,7 +7,7 @@ import csv
 import datetime
 import logging
 import pygame
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 
 # v1.1: File Logging
@@ -38,26 +39,41 @@ except ImportError:
     autopilot = None
 
 # App Setup
-app = Flask(__name__)
+# Resolve project root (works for dev AND frozen PyInstaller)
+if getattr(sys, 'frozen', False):
+    PROJECT_ROOT = sys._MEIPASS
+else:
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+app = Flask(__name__, static_folder=os.path.join(PROJECT_ROOT, 'assets'), static_url_path='/assets')
 CORS(app)
 
 # --- INIT COACH ---
 coach_type = "offline"
 coach = OfflineCoach()
+voice = None
+print("✅ Apps initialized (Offline Mode)")
 
-# Disable Caching for PyWebView (Fixes stale JS/HTML)
+# Disable Caching (Fixes stale JS/HTML in PyWebView)
 @app.after_request
 def add_header(response):
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
     return response
-# ... (rest is same)
 
-# ... (at end of file)
+# --- FRONTEND ROUTES ---
+@app.route('/')
+def serve_dashboard():
+    return send_from_directory(PROJECT_ROOT, 'dashboard.html')
 
-voice = None
-print("✅ Apps initialized (Offline Mode)")
+@app.route('/dashboard_therapeutic.js')
+def serve_js():
+    return send_from_directory(PROJECT_ROOT, 'dashboard_therapeutic.js')
+
+@app.route('/connection_control.html')
+def serve_connection():
+    return send_from_directory(PROJECT_ROOT, 'connection_control.html')
 
 
 

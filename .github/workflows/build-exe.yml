@@ -28,7 +28,7 @@ jobs:
         
     - name: Build EXE with PyInstaller
       run: |
-        pyinstaller --onefile --noconsole --name="FocusFlow" --add-data "assets;assets" --add-data "src;src" --hidden-import=flask --hidden-import=pylsl --hidden-import=pygame --hidden-import=bleak --hidden-import=python-osc --hidden-import=scipy --hidden-import=numpy start_app_monolith.py
+        pyinstaller --onefile --noconsole --name="FocusFlow" --add-data "dashboard.html;." --add-data "dashboard_therapeutic.js;." --add-data "connection_control.html;." --add-data "assets;assets" --add-data "src;src" --hidden-import=flask --hidden-import=pylsl --hidden-import=pygame --hidden-import=bleak --hidden-import=python-osc --hidden-import=scipy --hidden-import=numpy start_app_monolith.py
         
     - name: Create Release Package
       run: |
