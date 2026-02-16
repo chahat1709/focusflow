@@ -3,7 +3,7 @@
 // Ultra-Smooth Animations (60fps+)
 // ==========================
 
-const CONFIG = { api: 'http://localhost:5001/api' };
+const CONFIG = { api: '/api' };
 
 // ==========================
 // 3D NEURAL SPHERE (Biofeedback-Linked)
