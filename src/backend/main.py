@@ -6,7 +6,10 @@ import os
 import csv
 import datetime
 import logging
-import pygame
+try:
+    import pygame
+except ImportError:
+    pygame = None  # Sound notifications disabled
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 
