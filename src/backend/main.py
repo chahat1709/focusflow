@@ -48,10 +48,6 @@ coach = OfflineCoach()
 
 # ... (at end of file)
 
-    print(f">> Starting Backend Server on Port {port}...")
-    
-    # Run server standard Flask (Robust & Crash-Free)
-    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
 voice = None
 print("✅ Apps initialized (Offline Mode)")
 
