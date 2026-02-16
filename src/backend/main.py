@@ -41,14 +41,17 @@ except ImportError:
 app = Flask(__name__)
 CORS(app)
 
-# Initialize SocketIO (Required for socketio.run)
-# Force threading mode for compatibility with PyWebView/PyInstaller
-from flask_socketio import SocketIO
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
-
 # --- INIT COACH ---
 coach_type = "offline"
 coach = OfflineCoach()
+# ... (rest is same)
+
+# ... (at end of file)
+
+    print(f">> Starting Backend Server on Port {port}...")
+    
+    # Run server standard Flask (Robust & Crash-Free)
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
 voice = None
 print("✅ Apps initialized (Offline Mode)")
 
@@ -543,9 +546,8 @@ def start_server(streamer_getter=None, port=None):
     
     print(f">> Starting Backend Server on Port {port}...")
     
-    # Run server without threading first to test
-    # Re-enable debug=True for better error visibility if needed, but False for production
-    socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
+    # Run server using standard Flask (Robust for Frozen Apps)
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
 
 if __name__ == '__main__':
     start_server()
