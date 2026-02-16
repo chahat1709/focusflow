@@ -44,6 +44,14 @@ CORS(app)
 # --- INIT COACH ---
 coach_type = "offline"
 coach = OfflineCoach()
+
+# Disable Caching for PyWebView (Fixes stale JS/HTML)
+@app.after_request
+def add_header(response):
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 # ... (rest is same)
 
 # ... (at end of file)
