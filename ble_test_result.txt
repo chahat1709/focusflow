@@ -1,0 +1,46 @@
+=== STEP 1: Scan (10s) ===
+OK: Found Muse-155E (00:55:DA:B8:15:5E)
+=== STEP 2: GATT Connect ===
+OK: Connected = True
+=== STEP 3: HALT ===
+OK: HALT sent
+=== STEP 4: DEV_INFO ===
+OK: DEV_INFO sent
+=== STEP 5: PRESET P50 (BEFORE subscribe!) ===
+OK: PRESET P50 sent
+=== STEP 6: Subscribe EEG ===
+OK: Subscribed to TP9
+OK: Subscribed to AF7
+OK: Subscribed to AF8
+OK: Subscribed to TP10
+=== STEP 7: Subscribe IMU ===
+OK: Subscribed to ACCEL
+OK: Subscribed to GYRO
+=== STEP 8: Subscribe PPG ===
+OK: Subscribed to PPG1
+OK: Subscribed to PPG2
+OK: Subscribed to PPG3
+=== STEP 9: RESUME ===
+OK: RESUME sent
+=== STEP 10: START + KEEP ===
+OK: START + KEEP sent
+=== STEP 11: Listen 15s ===
+  1s: 234 notifications so far
+  2s: 383 notifications so far
+  3s: 534 notifications so far
+  4s: 687 notifications so far
+  5s: 835 notifications so far
+  6s: 988 notifications so far
+  7s: 1137 notifications so far
+  8s: 1292 notifications so far
+  9s: 1445 notifications so far
+  10s: 1590 notifications so far
+  11s: 1740 notifications so far
+  12s: 1895 notifications so far
+  13s: 2042 notifications so far
+  14s: 2191 notifications so far
+  15s: 2345 notifications so far
+Total notifications: 2345
+=== Disconnect ===
+OK: Disconnected
+RESULT: *** SUCCESS *** Data is flowing!

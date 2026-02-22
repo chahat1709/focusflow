@@ -1,0 +1,8 @@
+# Production Requirements — BlueMuse LSL Backend
+aiohttp>=3.8.0
+numpy>=1.21.0
+pylsl>=1.16.0
+supabase>=2.0.0
+fpdf2>=2.7.0
+scipy>=1.10.0
+bleak>=0.20.0

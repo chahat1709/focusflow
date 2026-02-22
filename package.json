@@ -1,0 +1,24 @@
+{
+  "name": "focusflow-dashboard",
+  "version": "1.0.0",
+  "description": "Futuristic Student Focus Dashboard with AI Robot Mascot",
+  "main": "serve_app.py",
+  "scripts": {
+    "start": "python serve_app.py",
+    "dev": "python serve_app.py",
+    "download-libs": "python download_libs.py"
+  },
+  "dependencies": {
+    "chart.js": "^4.3.0"
+  },
+  "keywords": [
+    "eeg",
+    "focus",
+    "dashboard",
+    "muse",
+    "brain-computer-interface",
+    "education"
+  ],
+  "author": "FocusFlow Team",
+  "license": "MIT"
+}

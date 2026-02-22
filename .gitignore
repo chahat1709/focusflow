@@ -1,0 +1,42 @@
+# ── Secrets (NEVER push these) ──
+config.py
+.muse_address
+
+# ── Build artifacts ──
+dist/
+build/
+*.spec
+__pycache__/
+*.pyc
+*.pyo
+*.exe
+
+# ── Test & debug files ──
+test_all.py
+test_results.txt
+test_out.txt
+*.log
+err.log
+error.log
+out.log
+final_test.log
+full_status.log
+
+# ── Test scripts ──
+ble_test.py
+ble_gatt_test.py
+test_thread_scan.py
+test_thread_connect.py
+diagnose_hardware.py
+
+# ── IDE & OS ──
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+.DS_Store
+
+# ── Misc ──
+FocusFlow_Client_Setup.zip
+node_modules/
+.gemini/
