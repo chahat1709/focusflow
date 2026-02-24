@@ -1,0 +1,55 @@
+============================================================
+  FocusFlow ù Full End-to-End Test Suite
+============================================================
+
+[1] Dashboard HTML
+  PASS  Page loads status=200
+  PASS  Has session-controls div 
+  FAIL  REC button REMOVED 
+  PASS  STOP button exists (hidden) 
+
+[2] /api/status
+  PASS  Status returns 200 
+  FAIL  Has 'connected' field 
+  FAIL  Has 'baseline_done' field 
+
+[3] /api/db/status
+  PASS  DB status returns 200 
+  PASS  Supabase connected connected=True
+
+[4] /api/colleges
+  PASS  Colleges returns 200 
+  PASS  Returns a list count=2
+
+[5] /api/db/recent
+  PASS  Recent sessions returns 200 
+  PASS  Returns a list count=4
+
+[6] /api/students/search
+  PASS  Search returns 200 
+  PASS  Returns a list count=2
+
+[7] /api/session/start (POST)
+  PASS  Session start returns 200 
+  PASS  Returns ok status response={'status': 'ok', 'message': 'Baseline reset. Calibration will begin.'}
+
+[8] /api/report/<id>
+  PASS  Report returns 200 
+  PASS  Returns PDF content-type 
+  PASS  PDF has content size=1745 bytes
+
+[9] dashboard_therapeutic.js
+  PASS  JS file loads 
+  PASS  Has connection check guard 
+  PASS  Has stopSessionBtn reference 
+  PASS  Has 5-min timer constant 
+  PASS  Has _startSessionInternal 
+  PASS  Has encodeURIComponent in downloadReport 
+  PASS  No recursive startSession bug 
+
+[10] /api/calibrate
+  PASS  Calibrate returns 200 
+
+============================================================
+  RESULTS: 25 passed, 3 failed, 28 total
+============================================================
