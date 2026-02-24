@@ -4,7 +4,6 @@ import threading
 import time
 import os
 import csv
-import json
 import datetime
 import logging
 try:
@@ -56,7 +55,6 @@ CORS(app)
 coach_type = "offline"
 coach = OfflineCoach()
 voice = None
-AI_COACH_AVAILABLE = coach is not None
 print("✅ Apps initialized (Offline Mode)")
 
 # Disable Caching (Fixes stale JS/HTML in PyWebView)
@@ -110,12 +108,18 @@ def get_focus():
         }
     return jsonify(data)
 
+@app.route('/api/connect')
+def trigger_connect():
+    if not autopilot: return jsonify({'status': 'error'})
+    if autopilot.status == "streaming": return jsonify({'status': 'already_connected'})
+    threading.Thread(target=autopilot.start_stream, daemon=True).start()
+    return jsonify({'status': 'initiated'})
+
 @app.route('/api/calibrate/start')
 def start_calib():
-    with state_lock:
-        state['calibrating'] = True
-        calib['data'] = []
-        calib['progress'] = 0.0
+    state['calibrating'] = True
+    calib['data'] = []
+    calib['progress'] = 0.0
     return jsonify({'ok': True})
 
 @app.route('/api/session/start')
@@ -243,6 +247,11 @@ def get_session_report():
     }
     
     # Use the active coach (Gemini or Offline)
+    if coach:
+        summary = coach.generate_summary(stats)
+        return jsonify({'report': summary})
+    
+    
     if coach:
         summary = coach.generate_summary(stats)
         return jsonify({'report': summary})
@@ -524,17 +533,19 @@ if OSC_AVAILABLE:
     threading.Thread(target=osc_worker, daemon=True).start()
 
 
-import atexit
-
-def cleanup():
-    print("🛑 Shutting down (Safe-Shutdown)...")
-    if autopilot:
-        try:
-            autopilot.stop_stream()
-        except Exception:
-            pass
-    print("✅ Shutdown Complete.")
-
+if __name__ == "__main__":
+    # Start Beast Engine
+    t = BeastStreamer()
+    t.start()
+    
+    # Medical Safe-Shutdown
+    import atexit
+    def cleanup():
+        print("🛑 STOPPING BEAST (Medical Safe-Shutdown)...")
+        t.stop()
+        t.join(timeout=1)
+        if autopilot: autopilot.stop_stream()
+        print("✅ Shutdown Complete.")
 def start_server(streamer_getter=None, port=None):
     """Entry point for the monolithic launcher"""
     global _streamer_instance
@@ -562,15 +573,4 @@ def start_server(streamer_getter=None, port=None):
     app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
 
 if __name__ == '__main__':
-    # Start Beast Engine
-    t = BeastStreamer()
-    t.start()
-    
-    # Register enhanced cleanup for standalone mode
-    def standalone_cleanup():
-        cleanup()
-        t.stop()
-        t.join(timeout=1)
-    atexit.register(standalone_cleanup)
-    
     start_server()

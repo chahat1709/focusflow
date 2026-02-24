@@ -159,8 +159,8 @@ class SmartProcessor:
             try:
                 ts = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
                 rec['writer'].writerow([ts, 'PPG', sample[0], sample[1], sample[2], 0, current_bpm])
-            except Exception as e:
-                print(f"PPG CSV WRITE ERROR: {e}")
+            except:
+                pass
         
         # Calculate BPM every 1 second (approx 64 samples)
         if idx % 64 == 0:
