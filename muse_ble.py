@@ -329,7 +329,8 @@ class MuseBLEClient:
             try:
                 await self._client.write_gatt_char(CONTROL_UUID, CMD_STOP, response=False)
                 await self._client.disconnect()
-            except: pass
+            except Exception as e:
+                logger.warning(f"BLE disconnect cleanup error: {e}")
         self._client = None
         logger.info("BLE disconnected")
 

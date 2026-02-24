@@ -37,6 +37,10 @@ a = Analysis(
     datas=[
         ('dashboard.html', '.'),
         ('dashboard_therapeutic.js', '.'),
+        ('config.py', '.'),
+        ('.env', '.'),
+        ('database.py', '.'),
+        ('reporting.py', '.'),
         ('assets', 'assets'),
     ],
     hiddenimports=[

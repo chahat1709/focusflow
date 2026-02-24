@@ -1034,7 +1034,9 @@ class ConnectionManager:
             self._state = 'connected'
             threading.Thread(target=self._read_lsl_loop, args=(inlet,), daemon=True).start()
             return True
-        except: return False
+        except Exception as e:
+            logger.warning(f"LSL connect failed: {e}")
+            return False
 
     def _read_lsl_loop(self, inlet):
         while self._state == 'connected':
@@ -1045,7 +1047,8 @@ class ConnectionManager:
                     with self._lock:
                         self.snapshot.connected = True
                         self.snapshot.timestamp = time.time()
-            except: break
+            except Exception:
+                break
         self._state = 'idle'
     
     # ── SIMULATION ───────────────────────────────────────────

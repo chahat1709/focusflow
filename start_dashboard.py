@@ -51,7 +51,7 @@ def start_server():
         try:
             webbrowser.open(f'http://localhost:{PORT}')
             print("🌐 Browser opened automatically!")
-        except:
+        except Exception:
             print("📝 Could not open browser automatically")
             print(f"🌐 Please open: http://localhost:{PORT}")
         
