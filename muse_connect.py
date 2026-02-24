@@ -2,6 +2,7 @@ import asyncio
 import time
 import uuid
 import struct
+import threading
 import numpy as np
 from bleak import BleakScanner, BleakClient
 from pylsl import StreamInfo, StreamOutlet
