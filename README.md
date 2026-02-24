@@ -1,180 +1,105 @@
-# FocusFlow Dashboard - Production Ready
+# FocusFlow — Real-Time Neurofeedback System for Muse 2
 
-## 📁 Essential Files Only
+> **A clinical-grade EEG focus scoring and school management platform, built exclusively for the InteraXon Muse 2 headband using bleak (Direct BLE) + muselsl/pylsl (LSL fallback).**
 
-This directory contains the cleaned up, production-ready FocusFlow dashboard with all unnecessary files removed.
-
-### 🎯 Main Production Files
-
-| File | Purpose |
-|------|---------|
-| **`production_fixed.html`** | Main dashboard HTML with retry functionality |
-| **`production_fixed.css`** | Optimized styles with animations |
-| **`production_fixed.js`** | Complete JavaScript functionality |
-| **`production_server.py`** | Production backend server |
-| **`production_requirements.txt`** | Python dependencies |
-| **`docker-compose.yml`** | Docker deployment configuration |
-| **`Dockerfile`** | Container configuration |
-| **`deploy.sh`** | Deployment script |
-| **`PRODUCTION_SUMMARY.md`** | Detailed documentation |
-
-### 🤖 AI Robot Files
-
-| File | Purpose |
-|------|---------|
-| **`ai_robot.js`** | Core AI robot functionality |
-| **`robot_integration.js`** | Robot integration system |
-| **`robot_personalities.js`** | Robot personality definitions |
-
-### 🧠 Muse EEG Files
-
-| File | Purpose |
-|------|---------|
-| **`muse_eeg_server.py`** | Muse EEG data server |
-
-### 📦 Development Files
-
-| File | Purpose |
-|------|---------|
-| **`package.json`** | Node.js dependencies |
-| **`package-lock.json`** | Dependency lock file |
-| **`node_modules/`** | Node.js packages |
-
-### 🚀 Utility Files
-
-| File | Purpose |
-|------|---------|
-| **`DOWNLOAD_LIBS.bat`** | Windows batch script |
-| **`DOWNLOAD_LIBS.ps1`** | PowerShell script |
-| **`START_MUSE_SERVER.bat`** | Muse server starter |
-
-## 🎮 Usage
-
-### Quick Start
-1. Open **`production_fixed.html`** in your browser
-2. Click **"Connect Muse"** to start
-3. If connection fails, **retry button** will appear
-4. **Auto-retry** will attempt reconnection every 30 seconds
-
-### Features
-- ✅ **Working retry button** with auto-retry functionality
-- ✅ **Real-time focus monitoring** with animated charts
-- ✅ **AI robot assistant** with motivational messages
-- ✅ **Session tracking** and history
-- ✅ **Professional animations** and smooth performance
-- ✅ **Responsive design** for all devices
-
-### Keyboard Shortcuts
-- **Ctrl/Cmd + S** - Start session
-- **Ctrl/Cmd + P** - Pause session
-- **Ctrl/Cmd + R** - Reset session
-- **Ctrl/Cmd + C** - Connect Muse
-
-### Touch Support (Mobile)
-- **Swipe up** - Start session
-- **Swipe down** - Pause session
-
-## 🐳 Docker Deployment
-
-```bash
-# Build and start all services
-./deploy.sh
-
-# Or manually
-docker-compose up -d
-
-# Check status
-docker-compose ps
-
-# View logs
-docker-compose logs -f
-```
-
-## 🔧 Configuration
-
-### Muse Server Settings
-- **Default URL:** `http://localhost:8080`
-- **Fallback:** Demo mode with simulated data
-- **Auto-retry:** Every 30 seconds
-
-### Performance Optimizations
-- **GPU acceleration** for smooth animations
-- **Element caching** for faster DOM queries
-- **Debounced handlers** to prevent excessive calls
-- **Visibility API** to pause when tab is hidden
-
-## 🎨 Visual Features
-
-### Animations
-- **Background:** Slow rotating gradient (20s)
-- **Robot mascot:** Floating with blinking eyes
-- **Buttons:** Pulse effects on hover
-- **Cards:** Breathing animations
-- **Charts:** Smooth real-time updates
-
-### Theme
-- **Professional dark theme** with neon accents
-- **Color scheme:** Green (#00ff88), Gold (#ffb700), Purple (#8b00ff)
-- **Responsive design** for all screen sizes
-
-## 📊 Data Features
-
-### Real-time Monitoring
-- **Focus levels** (0-100%)
-- **Signal quality** indicator
-- **Battery level** monitoring
-- **Session statistics**
-
-### Session Analysis
-- **Current focus** percentage
-- **Peak focus** tracking
-- **Average focus** calculation
-- **Focus stability** metrics
-
-### History Tracking
-- **Total sessions** count
-- **Total time** training
-- **Best session** performance
-- **Session history** with details
-
-## 🔒 Security & Performance
-
-### Security Headers
-- **Content Security Policy** for XSS protection
-- **X-Frame-Options** to prevent clickjacking
-- **X-XSS-Protection** for browser filtering
-- **Referrer Policy** for privacy
-
-### Performance
-- **Optimized animations** with GPU acceleration
-- **Lazy loading** for better initial load
-- **Compressed assets** for faster delivery
-- **Service worker** for offline support
-
-## 🚨 Troubleshooting
-
-### Retry Button Not Working
-1. Ensure you're opening **`production_fixed.html`**
-2. Check browser console for errors
-3. Verify Muse server is running (optional - demo mode works without it)
-
-### Connection Issues
-- **Demo mode:** Works without Muse device
-- **Real device:** Requires Muse server on port 8080
-- **Auto-retry:** Will attempt connection every 30 seconds
-
-### Performance Issues
-- **Reduce animations:** Use `prefers-reduced-motion`
-- **Check resources:** Monitor browser dev tools
-- **Clear cache:** Hard refresh (Ctrl+Shift+R)
-
-## 📞 Support
-
-For issues or questions:
-1. Check **`PRODUCTION_SUMMARY.md`** for detailed documentation
-2. Review browser console for error messages
-3. Verify all files are present in this directory
+![Python](https://img.shields.io/badge/Python-3.11+-blue) ![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey) ![Hardware](https://img.shields.io/badge/Hardware-Muse%202%20EEG-purple) ![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
 
 ---
 
-**🎉 Production-ready, cleaned, and optimized!** ✨
+## 🧠 What Is FocusFlow?
+
+FocusFlow is a **standalone, offline, production-ready** neurofeedback platform that turns the Muse 2 EEG headband into a clinical-grade focus assessment tool for schools, clinics, and research labs.
+
+Unlike the official Muse app (which only measures meditation), FocusFlow measures **cognitive focus** in real-time — giving a score, trend graph, and printable PDF report for each student or participant.
+
+**No cloud. No subscription. One `.exe` file. Runs on any Windows machine.**
+
+---
+
+## 🔬 Scientific Pipeline (5-Stage DSP)
+
+| Stage | Algorithm | Purpose |
+|---|---|---|
+| **Stage 1** | 4th-order Butterworth Bandpass (1-45Hz) + Dual Notch (50/60Hz) | Remove DC drift and power-line noise |
+| **Stage 2** | Common Average Reference (CAR) | Spatial noise cancellation across all 4 electrodes |
+| **Stage 3** | IMU Motion Mask (Accelerometer-gated) | Veto EEG samples during head movement |
+| **Stage 4** | Lightweight ASR (z-threshold spike rejection) | Replace artifact samples without discarding the window |
+| **Stage 5** | Welch PSD + IAF Calibration + Z-Score Focus Metric | Personalized, normalized focus score per individual |
+
+**Bonus:** Cross-Frequency Coupling (Alpha-Gamma CFC via Hilbert Transform) generates a secondary "Deep Focus" metric — typically only available in $30,000+ lab-grade EEG amplifiers.
+
+---
+
+## ⚡ Key Features
+
+- 🔗 **Dual connection strategy** — Direct BLE via `bleak` (primary) + `muselsl/pylsl` LSL stream (fallback)
+- 📊 **Live 4-channel EEG dashboard** with real-time band power visualization
+- 🎯 **IAF-personalized focus score** — calibrates to each individual's brain in 15 seconds
+- 👁️ **Blink & EMG artifact rejection** — clinically accurate, not distorted by eye movements
+- ❤️ **Real-time BPM** from Muse 2 PPG optical heart rate sensor
+- 🏫 **School management system** — Schools → Classes → Students hierarchy
+- 📄 **Automated PDF reports** — generated per session, per student
+- 🧘 **Mind State Classifier** — Calm / Neutral / Active (similar to Muse app, but open)
+- 💊 **Headband contact detection** — debounced, signal-quality-based (not spectral)
+- 🖥️ **Single `.exe` distribution** — zero install for end-users
+
+---
+
+## 🏗️ Tech Stack
+
+- **Backend:** Python 3.11, `asyncio`, `aiohttp`
+- **Hardware:** `bleak` (Direct BLE) + `muselsl/pylsl` (LSL fallback), GATT UUID subscription
+- **DSP:** `numpy`, `scipy.signal`
+- **Database:** Supabase (cloud)
+- **Frontend:** Vanilla JavaScript, hardware-accelerated CSS3
+- **Distribution:** PyInstaller single-file `.exe`
+
+---
+
+## 🖥️ Screenshots
+
+> *Dashboard with live EEG, focus score, and electrode contact map.*
+
+---
+
+## 📂 Repository Structure
+
+```
+focusflow/
+├── production_server.py     # Core async server + 5-stage DSP pipeline
+├── muse_ble.py              # Direct BLE driver for Muse 2 (GATT)
+├── database.py              # Student/school management
+├── dashboard.html           # Real-time frontend
+├── dashboard_therapeutic.js # UI logic and session control
+├── reporting.py             # PDF report generation
+└── BUILD_EXE.bat            # PyInstaller build script
+```
+
+---
+
+## 💼 Licensing & Acquisition
+
+This project is available for:
+
+| Type | Details |
+|---|---|
+| **Binary License** | One-time fee. Compiled `.exe` for a single organization. |
+| **Full IP Transfer** | Complete source code + all rights. Ideal for integration into a commercial product. |
+| **Research License** | For academic institutions. Custom pricing available. |
+
+> **Interested in licensing or acquiring this technology?**
+> 📧 Contact: chahatjain1315@gmail.com
+> 🔗 LinkedIn: [linkedin.com/in/chahatjain1315](https://linkedin.com/in/chahatjain1315)
+
+---
+
+## ⚠️ License
+
+Copyright © 2025-2026 Chahat Jain. All Rights Reserved.
+
+This is proprietary software. See [LICENSE](./LICENSE) for full terms.
+Unauthorized use, copying, or distribution is strictly prohibited.
+
+---
+
+*Built with precision engineering for the Muse 2 ecosystem.*

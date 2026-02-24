@@ -247,3 +247,48 @@ def _offline_response(kind: str, data: dict) -> dict:
     data["id"] = str(_uuid.uuid4())
     logger.warning(f"Offline mode: {kind} created locally only.")
     return data
+
+# ── DELETE OPERATIONS ────────────────────────────────────────────────
+def delete_college(college_id: str) -> bool:
+    """Delete a college and all its classes/students/sessions (cascade)."""
+    try:
+        db = get_client()
+        if not db: return False
+        db.table("colleges").delete().eq("id", college_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"delete_college error: {e}")
+        return False
+
+def delete_class(class_id: str) -> bool:
+    """Delete a class and all its students/sessions (cascade)."""
+    try:
+        db = get_client()
+        if not db: return False
+        db.table("classes").delete().eq("id", class_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"delete_class error: {e}")
+        return False
+
+def delete_student(student_id: str) -> bool:
+    """Delete a student and all their sessions."""
+    try:
+        db = get_client()
+        if not db: return False
+        db.table("students").delete().eq("id", student_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"delete_student error: {e}")
+        return False
+
+def delete_session(session_id: str) -> bool:
+    """Delete a single session record."""
+    try:
+        db = get_client()
+        if not db: return False
+        db.table("sessions").delete().eq("id", session_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"delete_session error: {e}")
+        return False

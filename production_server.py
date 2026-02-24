@@ -818,7 +818,7 @@ class ConnectionManager:
                     if np.all(clean_mask[start:end]):
                         seg = d[start:end]
                         seg = seg - np.mean(seg) # Detrend
-                        f, p = signal.welch(seg, fs, window='hann', nperseg=256, noverlap=0)
+                        f, p = signal.welch(seg, fs, window='hann', nperseg=256, noverlap=128)
                         valid_psds.append(p)
                         freqs = f # Reference freqs
                 
@@ -1423,6 +1423,39 @@ async def handle_recent_sessions(request: web.Request) -> web.Response:
         logger.error(f"Handle recent sessions error: {e}")
         return web.json_response({'error': str(e)}, status=500)
 
+# ── Delete Handlers ──
+async def handle_college_delete(request: web.Request) -> web.Response:
+    try:
+        data = await request.json()
+        ok = db_module.delete_college(data.get('id', ''))
+        return web.json_response({'status': 'ok' if ok else 'error'})
+    except Exception as e:
+        return web.json_response({'status': 'error', 'message': str(e)}, status=500)
+
+async def handle_class_delete(request: web.Request) -> web.Response:
+    try:
+        data = await request.json()
+        ok = db_module.delete_class(data.get('id', ''))
+        return web.json_response({'status': 'ok' if ok else 'error'})
+    except Exception as e:
+        return web.json_response({'status': 'error', 'message': str(e)}, status=500)
+
+async def handle_student_delete(request: web.Request) -> web.Response:
+    try:
+        data = await request.json()
+        ok = db_module.delete_student(data.get('id', ''))
+        return web.json_response({'status': 'ok' if ok else 'error'})
+    except Exception as e:
+        return web.json_response({'status': 'error', 'message': str(e)}, status=500)
+
+async def handle_session_delete(request: web.Request) -> web.Response:
+    try:
+        data = await request.json()
+        ok = db_module.delete_session(data.get('id', ''))
+        return web.json_response({'status': 'ok' if ok else 'error'})
+    except Exception as e:
+        return web.json_response({'status': 'error', 'message': str(e)}, status=500)
+
 # ═══════════════════════════════════════════════════════════════
 #  CORS MIDDLEWARE
 # ═══════════════════════════════════════════════════════════════
@@ -1485,6 +1518,11 @@ def create_app() -> web.Application:
     app.router.add_get('/api/report/{student_id}', handle_report_generate)
     app.router.add_get('/api/db/status', handle_db_status)
     app.router.add_get('/api/db/recent', handle_recent_sessions)
+    # ── Delete routes ──
+    app.router.add_post('/api/college/delete', handle_college_delete)
+    app.router.add_post('/api/class/delete', handle_class_delete)
+    app.router.add_post('/api/student/delete', handle_student_delete)
+    app.router.add_post('/api/session/delete', handle_session_delete)
     
     # Static fallback
     app.router.add_get('/{filename}', handle_static)

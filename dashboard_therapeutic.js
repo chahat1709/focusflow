@@ -9,7 +9,7 @@
 // ═══════════════════════════════════════════════════════════════
 const API_BASE = '';          // Same origin (served by the Python server)
 const POLL_MS = 200;         // Data polling interval
-const HISTORY_POINTS = 120;   // Chart data window (120 × 0.2s ≈ 24s)
+const HISTORY_POINTS = 1500;  // Chart data window (1500 × 0.2s = 300s = full 5-min session)
 
 // ═══════════════════════════════════════════════════════════════
 //  STATE
@@ -1036,7 +1036,12 @@ async function loadColleges() {
     list.innerHTML = data.map(c => `
         <div class="sp-item">
             <div><strong>${c.name}</strong> <small style="opacity:0.6;margin-left:8px;">${c.city}</small></div>
-            <div style="font-size:10px;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:10px;">${c.board}</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div style="font-size:10px;background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:10px;">${c.board}</div>
+                <button onclick="deleteCollege('${c.id}','${(c.name || '').replace(/'/g, '')}')"
+                    style="font-size:10px;background:#EF4444;color:white;border:none;border-radius:4px;padding:2px 6px;cursor:pointer;"
+                    title="Delete college">🗑️</button>
+            </div>
         </div>
     `).join('') || '<div style="opacity:0.5;text-align:center;padding:20px;">No colleges found</div>';
 }
@@ -1067,7 +1072,14 @@ async function createClass() {
 async function loadClasses(cid) {
     const res = await fetch(`${API_BASE}/api/classes?college_id=${cid}`);
     const data = await res.json();
-    $('list_classes').innerHTML = data.map(c => `<div class="sp-item"><div>${c.name}</div></div>`).join('');
+    $('list_classes').innerHTML = data.map(c => `
+        <div class="sp-item">
+            <div>${c.name}</div>
+            <button onclick="deleteClass('${c.id}','${(c.name || '').replace(/'/g, '')}','${cid}')"
+                style="font-size:10px;background:#EF4444;color:white;border:none;border-radius:4px;padding:2px 6px;cursor:pointer;"
+                title="Delete class">🗑️</button>
+        </div>
+    `).join('');
 }
 
 async function loadClassesForStudent() {
@@ -1110,7 +1122,12 @@ async function loadStudents(class_id) {
         return `
         <div class="sp-item">
             <div>${s.name} <small>(${s.roll_no})</small></div>
-            <button onclick="openModalForStudent('${s.id}', '${safeName}', '${clsName.replace(/'/g, '')}', '${clgName.replace(/'/g, '')}')" style="font-size:10px;background:var(--therapeutic-teal);color:#0A2E4D;border:none;border-radius:4px;padding:2px 6px;cursor:pointer;">Session</button>
+            <div style="display:flex;gap:6px;">
+                <button onclick="openModalForStudent('${s.id}', '${safeName}', '${clsName.replace(/'/g, '')}', '${clgName.replace(/'/g, '')}')" style="font-size:10px;background:var(--therapeutic-teal);color:#0A2E4D;border:none;border-radius:4px;padding:2px 6px;cursor:pointer;">Session</button>
+                <button onclick="deleteStudent('${s.id}','${safeName}','${class_id}')"
+                    style="font-size:10px;background:#EF4444;color:white;border:none;border-radius:4px;padding:2px 6px;cursor:pointer;"
+                    title="Delete student">🗑️</button>
+            </div>
         </div>
     `;
     }).join('');
@@ -1142,6 +1159,7 @@ async function dbSearch() {
             <div style="display:flex;gap:12px;">
                 <button onclick="downloadReport('${s.id}', '${s.name}', '${s.roll_no}', '${s.age}', '${s.class_name}', '${s.college_name}')" class="btn-db-action">📄 Report</button>
                 <button onclick="openModalForStudent('${s.id}', '${s.name}', '${s.class_name}', '${s.college_name}')" class="btn-db-action active">▶ New Session</button>
+                <button onclick="deleteStudent('${s.id}','${(s.name || '').replace(/'/g, '')}')" class="btn-db-action" style="background:rgba(239,68,68,0.2);color:#EF4444;">🗑️ Delete</button>
             </div>
         </div>
     `).join('') || '<div style="opacity:0.5;text-align:center;padding:40px;">No students found matching search.</div>';
@@ -1179,6 +1197,7 @@ async function loadRecentSessions() {
                     <div style="display:flex;gap:12px;">
                          <button onclick="downloadReport('${s.student_id}', '${s.student_name}', '', '', '${s.class_name}', '${s.college_name}')" class="btn-db-action">📄 Report</button>
                          <button onclick="openModalForStudent('${s.student_id}', '${s.student_name}', '${s.class_name}', '${s.college_name}')" class="btn-db-action active">▶ Re-run</button>
+                         <button onclick="deleteSession('${s.id}','${(s.student_name || '').replace(/'/g, '')}')" class="btn-db-action" style="background:rgba(239,68,68,0.2);color:#EF4444;">🗑️</button>
                     </div>
                 </div>
             `).join('')}
@@ -1286,3 +1305,54 @@ window.createClass = createClass;
 window.createStudent = createStudent;
 window.showSPPanel = showSPPanel;
 window.loadClassesForStudent = loadClassesForStudent;
+
+// ═══════════════════════════════════════════════════════════════
+//  DELETE OPERATIONS
+// ═══════════════════════════════════════════════════════════════
+async function deleteCollege(id, name) {
+    if (!confirm(`Delete college "${name}"? This will also delete ALL classes, students, and sessions under it.`)) return;
+    const res = await fetch(`${API_BASE}/api/college/delete`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id })
+    });
+    const d = await res.json();
+    if (d.status === 'ok') { showAlert(`Deleted college: ${name}`, 'info', 3000); loadColleges(); }
+    else showAlert('Delete failed', 'error', 3000);
+}
+
+async function deleteClass(id, name, collegeId) {
+    if (!confirm(`Delete class "${name}"? This will also delete ALL students and sessions in it.`)) return;
+    const res = await fetch(`${API_BASE}/api/class/delete`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id })
+    });
+    const d = await res.json();
+    if (d.status === 'ok') { showAlert(`Deleted class: ${name}`, 'info', 3000); if (collegeId) loadClasses(collegeId); }
+    else showAlert('Delete failed', 'error', 3000);
+}
+
+async function deleteStudent(id, name, classId) {
+    if (!confirm(`Delete student "${name}"? This will also delete ALL their sessions.`)) return;
+    const res = await fetch(`${API_BASE}/api/student/delete`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id })
+    });
+    const d = await res.json();
+    if (d.status === 'ok') {
+        showAlert(`Deleted student: ${name}`, 'info', 3000);
+        if (classId) loadStudents(classId);
+        else { dbSearch(); loadRecentSessions(); }
+    } else showAlert('Delete failed', 'error', 3000);
+}
+
+async function deleteSession(id, studentName) {
+    if (!confirm(`Delete this session for "${studentName}"?`)) return;
+    const res = await fetch(`${API_BASE}/api/session/delete`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id })
+    });
+    const d = await res.json();
+    if (d.status === 'ok') { showAlert('Session deleted', 'info', 3000); loadRecentSessions(); }
+    else showAlert('Delete failed', 'error', 3000);
+}
+
+window.deleteCollege = deleteCollege;
+window.deleteClass = deleteClass;
+window.deleteStudent = deleteStudent;
+window.deleteSession = deleteSession;

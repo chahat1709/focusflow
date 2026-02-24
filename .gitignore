@@ -1,42 +1,28 @@
-# ── Secrets (NEVER push these) ──
-config.py
-.muse_address
+# ── FocusFlow .gitignore ──
 
-# ── Build artifacts ──
-dist/
-build/
-*.spec
+# Environment secrets (NEVER commit)
+.env
+
+# Local database (user-specific)
+focusflow_local.db
+focusflow_local.db-wal
+focusflow_local.db-shm
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
-*.exe
+*.egg-info/
+dist/
+build/
 
-# ── Test & debug files ──
-test_all.py
-test_results.txt
-test_out.txt
-*.log
-err.log
-error.log
-out.log
-final_test.log
-full_status.log
-
-# ── Test scripts ──
-ble_test.py
-ble_gatt_test.py
-test_thread_scan.py
-test_thread_connect.py
-diagnose_hardware.py
-
-# ── IDE & OS ──
+# IDE
 .vscode/
 .idea/
-*.swp
+
+# OS
 Thumbs.db
 .DS_Store
 
-# ── Misc ──
-FocusFlow_Client_Setup.zip
-node_modules/
-.gemini/
+# Logs
+*.log
