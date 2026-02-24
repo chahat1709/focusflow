@@ -391,17 +391,17 @@ async function pollServer() {
             if (ms === 'calm') {
                 $vv.textContent = '🧘';
                 $vv.style.color = '#86EFAC';
-                $vl.textContent = `Calm · ${timeStr}`;
+                $vl.textContent = 'Calm';
                 $vl.style.color = '#86EFAC';
             } else if (ms === 'active') {
                 $vv.textContent = '⚡';
                 $vv.style.color = '#7DD3FC';
-                $vl.textContent = `Active · ${timeStr}`;
+                $vl.textContent = 'Active';
                 $vl.style.color = '#7DD3FC';
             } else if (ms === 'neutral') {
                 $vv.textContent = '🎯';
                 $vv.style.color = '#FCD34D';
-                $vl.textContent = `Neutral · ${timeStr}`;
+                $vl.textContent = 'Neutral';
                 $vl.style.color = '#FCD34D';
             } else if (ms === 'calibrating') {
                 $vv.textContent = '⏳';

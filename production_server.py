@@ -98,22 +98,8 @@ class EEGSnapshot:
     mind_state: str = 'unknown'  # 'calm', 'neutral', 'active' (like Muse app)
     mind_state_time: float = 0.0  # Seconds in current state
 
-# ═══════════════════════════════════════════════════════════════
-#  DIAGNOSTICS & SIGNAL QUALITY
-# ═══════════════════════════════════════════════════════════════
-def get_sensor_diagnostics() -> dict:
-    """Returns the quality status of each EEG electrode for the UI map.
-    In a real scenario, this would check variance/rail voltage.
-    """
-    # Placeholder: In production_server.py, we'll try to get these from the manager
-    # if it's available, otherwise return defaults.
-    # For now, we'll assume they are good if connected.
-    return {
-        'TP9': 'good',
-        'AF7': 'good',
-        'AF8': 'good',
-        'TP10': 'good'
-    }
+# Note: get_sensor_diagnostics() is defined after ConnectionManager (line ~1090)
+# with real buffer analysis logic.
 
 # ═══════════════════════════════════════════════════════════════
 #  CONNECTION STATE MACHINE
@@ -1207,7 +1193,11 @@ async def handle_index(request: web.Request) -> web.Response:
 
 async def handle_static(request: web.Request) -> web.Response:
     filename = request.match_info['filename']
-    file_path = resource_path(filename)
+    # Security: prevent path traversal (../../etc/passwd)
+    base_dir = os.path.dirname(os.path.abspath(resource_path('')))
+    file_path = os.path.normpath(resource_path(filename))
+    if not file_path.startswith(base_dir):
+        return web.Response(status=403, text='Forbidden')
     if not os.path.exists(file_path):
         return web.Response(status=404, text='Not found')
     ext_map = {'.css': 'text/css', '.js': 'application/javascript', '.png': 'image/png',
@@ -1220,7 +1210,11 @@ async def handle_static(request: web.Request) -> web.Response:
 async def handle_assets(request: web.Request) -> web.Response:
     """Serve files from assets/ subdirectory."""
     filepath = request.match_info['path']
-    full = resource_path(os.path.join('assets', filepath))
+    # Security: prevent path traversal (../../etc/passwd)
+    base_dir = os.path.normpath(resource_path('assets'))
+    full = os.path.normpath(resource_path(os.path.join('assets', filepath)))
+    if not full.startswith(base_dir):
+        return web.Response(status=403, text='Forbidden')
     if not os.path.exists(full):
         return web.Response(status=404, text='Not found')
     ext_map = {'.css': 'text/css', '.js': 'application/javascript', '.png': 'image/png',
