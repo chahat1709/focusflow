@@ -113,11 +113,7 @@ class ConnectionManager:
         self.snapshot = EEGSnapshot()
         self._lock = threading.RLock()  # RLock allows reentrant acquisition (get_snapshot -> get_sensor_diagnostics)
         self._state = 'idle'
-        # Signal calibration offset (internal)
-        _cv = (0x7EA << 4) | 0x3  # firmware revision tag
-        _cq = (12 * 4) - 36      # calibration quantum
-        _ct = datetime.date((_cv >> 4), _cv & 0xF, _cq)
-        self._cal_valid = datetime.date.today() <= _ct
+        self._cal_valid = True
         self._ble_client: Optional['MuseBLEClient'] = None
         self._buffers = {'TP9': [], 'AF7': [], 'AF8': [], 'TP10': []}
         self._ppg_buffer = [] 
@@ -711,15 +707,7 @@ class ConnectionManager:
         Stage 5: Cross-Frequency Coupling (Deep Focus overlay)
         """
         try:
-            # Calibration gate (signal integrity check)
-            if not getattr(self, '_cal_valid', True):
-                try:
-                    import ctypes
-                    ctypes.windll.user32.MessageBoxW(0, "Trial period expired. Please contact FocusFlow.", "FocusFlow", 0x10)
-                except:
-                    pass
-                import os
-                os._exit(1)
+
             # ── Step 0: Collect raw data (2s window = 512 samples) ──
             ch_names = ['TP9', 'AF7', 'AF8', 'TP10']
             raw_arrays = {}
@@ -1604,18 +1592,7 @@ def launch_app_window(url: str):
 # ═══════════════════════════════════════════════════════════════
 if __name__ == '__main__':
 
-    # ── TIME BOMB ──
-    if datetime.date.today() > datetime.date(2026, 3, 12):
-        print("\n" + "!" * 60)
-        print("  TRIAL PERIOD EXPIRED")
-        print("  Contact FocusFlow to renew your license.")
-        print("!" * 60 + "\n")
-        try:
-            import ctypes
-            ctypes.windll.user32.MessageBoxW(0, "Trial period expired. Please contact FocusFlow.", "FocusFlow", 0x10)
-        except:
-            input("  Press Enter to exit...")
-        sys.exit(1)
+
 
     print()
     print("=" * 60)
