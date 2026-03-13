@@ -31,6 +31,17 @@ const state = {
     _alertTimer: null, // Internal timer for alerts
 };
 
+// Disable specific dev warnings from third-party libs
+const originalWarn = console.warn;
+console.warn = function (...args) {
+    if (typeof args[0] === 'string') {
+        if (args[0].includes('cdn.tailwindcss.com') || args[0].includes('three.js')) {
+            return;
+        }
+    }
+    originalWarn.apply(console, args);
+};
+
 // ═══════════════════════════════════════════════════════════════
 //  DOM REFS
 // ═══════════════════════════════════════════════════════════════
@@ -46,6 +57,65 @@ function toggleSidebar() {
     container.classList.toggle('collapsed');
 }
 window.toggleSidebar = toggleSidebar;
+
+// ═══════════════════════════════════════════════════════════════
+//  THEME TOGGLE (Dark / Light)
+// ═══════════════════════════════════════════════════════════════
+function toggleTheme() {
+    const html = document.documentElement;
+    const isLight = html.getAttribute('data-theme') === 'light';
+    const newTheme = isLight ? 'dark' : 'light';
+    html.setAttribute('data-theme', newTheme);
+    localStorage.setItem('focusflow-theme', newTheme);
+    _updateThemeUI(newTheme);
+    _updateChartColors(newTheme);
+    if (window.updateNeuralColor) {
+        window.updateNeuralColor(newTheme);
+    }
+}
+window.toggleTheme = toggleTheme;
+
+function _updateThemeUI(theme) {
+    const thumb = document.getElementById('themeThumb');
+    const label = document.getElementById('themeLabel');
+    if (theme === 'light') {
+        if (thumb) { thumb.classList.add('light'); thumb.textContent = '☀️'; }
+        if (label) label.textContent = '☀️';
+    } else {
+        if (thumb) { thumb.classList.remove('light'); thumb.textContent = '🌙'; }
+        if (label) label.textContent = '🌙';
+    }
+}
+
+function _updateChartColors(theme) {
+    const labelColor = theme === 'light' ? '#475569' : '#94A3B8';
+    const gridColor = theme === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
+    const tickColor = theme === 'light' ? '#334155' : '#64748B';
+
+    [focusChart, spectrumChart, gyroChart, historyChart].forEach(chart => {
+        if (!chart) return;
+        if (chart.options.plugins && chart.options.plugins.legend) {
+            chart.options.plugins.legend.labels.color = labelColor;
+        }
+        if (chart.options.scales) {
+            Object.values(chart.options.scales).forEach(scale => {
+                if (scale.ticks) scale.ticks.color = tickColor;
+                if (scale.grid) scale.grid.color = gridColor;
+            });
+        }
+        chart.update('none');
+    });
+}
+
+// Restore theme on page load
+(function _initTheme() {
+    const saved = localStorage.getItem('focusflow-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', saved);
+    // Wait for DOM to have toggle elements
+    document.addEventListener('DOMContentLoaded', () => _updateThemeUI(saved));
+    // Also try immediately in case DOM is already loaded
+    _updateThemeUI(saved);
+})();
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -151,6 +221,9 @@ function initCharts() {
     }
 
     updateAnalytics();
+    // Sync chart colors to saved theme
+    const savedTheme = localStorage.getItem('focusflow-theme') || 'dark';
+    _updateChartColors(savedTheme);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -185,14 +258,7 @@ function updateConnectionUI(s, msg = '') {
             state.connected = true;
             startPolling();
             break;
-        case 'simulating':
-            if ($statusText) $statusText.textContent = 'Demo Mode';
-            if ($connectBtn) { $connectBtn.textContent = 'Stop Demo'; $connectBtn.disabled = false; }
-            if ($statusMsg) $statusMsg.textContent = '⚠ Simulated data (not live)';
-            if ($sidebarSt) { $sidebarSt.textContent = 'DEMO'; $sidebarSt.className = 'status-text offline'; }
-            state.connected = true;
-            startPolling();
-            break;
+
         case 'error':
             if ($statusText) $statusText.textContent = 'Not Found';
             if ($connectBtn) { $connectBtn.textContent = 'Try Again'; $connectBtn.disabled = false; }
@@ -239,9 +305,6 @@ function startStatusPolling() {
             const cs = data.connection_state || 'idle';
             if (cs === 'connected') {
                 updateConnectionUI('connected');
-                clearInterval(statusPollTimer); statusPollTimer = null;
-            } else if (cs === 'simulating') {
-                updateConnectionUI('simulating');
                 clearInterval(statusPollTimer); statusPollTimer = null;
             } else if (cs === 'error') {
                 updateConnectionUI('error', 'Muse 2 not found — make sure it is turned on and nearby');
@@ -315,6 +378,13 @@ async function pollServer() {
         const res = await fetch(`${API_BASE}/api/focus`);
         const d = await res.json();
 
+        // ── BUG FIX: Handle unexpected hardware disconnections ──
+        if (d.connection_state === 'idle' || d.connection_state === 'error') {
+            stopPolling();
+            updateConnectionUI(d.connection_state, d.connection_state === 'error' ? 'Connection lost' : '');
+            return;
+        }
+
         state.baseline_done = d.baseline_done;
 
         // Update Signal Quality Map
@@ -336,7 +406,7 @@ async function pollServer() {
         const $fl = $('focusLabel');
         if ($fv) {
             if (d.headband_on === false && state.connected) {
-                // Headband removed — show clear warning
+                // Headband removed — show clear warning, do NOT push 0 to session data
                 $fv.innerHTML = `<span style="font-size:16px;color:#FCD34D">⚠ Off</span>`;
                 if ($fl) $fl.textContent = 'Put headband on head';
             } else if (d.baseline_done === false && state.connected) {
@@ -345,7 +415,10 @@ async function pollServer() {
             } else {
                 const fp = Math.round((d.focus || 0) * 100);
                 $fv.innerHTML = `${fp}<span class="card-unit">%</span>`;
-                state.focus.push(d.focus || 0);
+                // Only push real focus data when headband is on
+                if (d.headband_on !== false) {
+                    state.focus.push(d.focus || 0);
+                }
                 // Show dominant band
                 if ($fl) {
                     const bands = { Alpha: d.alpha, Beta: d.beta, Theta: d.theta, Delta: d.delta, Gamma: d.gamma };
@@ -450,8 +523,35 @@ async function pollServer() {
             // Signal bars: poor
             updateSensorBars(false);
 
+            // ── PAUSE session timer while headband is off ──
+            // Prevents 5-minute countdown from ticking away during off-head periods
+            if (state.recording && sessionCountdownTimer) {
+                clearInterval(sessionCountdownTimer);
+                sessionCountdownTimer = null;
+                // Mark as paused so we can resume
+                state._sessionPaused = true;
+                const timerEl = document.getElementById('sessionCountdown');
+                if (timerEl) timerEl.style.color = '#EF4444'; // Red = paused
+                showAlert('⏸ Session paused — headband removed. Put it back to resume.', 'warn', 6000);
+            }
+
             // DON'T push chart data — no fake band powers
             return;
+        }
+
+        // ── RESUME session timer if headband is back on ──
+        if (state.recording && state._sessionPaused && d.headband_on) {
+            state._sessionPaused = false;
+            const timerEl = document.getElementById('sessionCountdown');
+            if (timerEl) timerEl.style.color = ''; // Reset color
+            sessionCountdownTimer = setInterval(() => {
+                sessionRemainingSeconds--;
+                updateSessionTimerUI();
+                if (sessionRemainingSeconds <= 0) {
+                    endSession();
+                }
+            }, 1000);
+            showAlert('▶ Session resumed — headband detected.', 'success', 3000);
         }
 
         // ══════════════════════════════════════════════════
@@ -763,6 +863,8 @@ function closeModal() {
 // ═══════════════════════════════════════════════════════════════
 //  3D NEURAL BACKGROUND  (Three.js particle sphere)
 // ═══════════════════════════════════════════════════════════════
+let neuralMaterial = null;
+
 function initNeuralBackground() {
     const canvas = $('neuralCanvas');
     if (!canvas || typeof THREE === 'undefined') return;
@@ -787,8 +889,9 @@ function initNeuralBackground() {
     }
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
 
-    const mat = new THREE.PointsMaterial({ color: 0x2DD4BF, size: 0.03, transparent: true, opacity: 0.6 });
-    const points = new THREE.Points(geo, mat);
+    // Default to teal, but we update it right after created
+    neuralMaterial = new THREE.PointsMaterial({ color: 0x2DD4BF, size: 0.03, transparent: true, opacity: 0.6 });
+    const points = new THREE.Points(geo, neuralMaterial);
     scene.add(points);
 
     camera.position.z = 6;
@@ -806,7 +909,22 @@ function initNeuralBackground() {
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
     });
+
+    // Set initial color based on theme
+    updateNeuralColor(document.documentElement.getAttribute('data-theme') || 'dark');
 }
+
+function updateNeuralColor(theme) {
+    if (!neuralMaterial) return;
+    if (theme === 'light') {
+        neuralMaterial.color.setHex(0x3B82F6); // Professional Blue
+        neuralMaterial.opacity = 0.8;          // Slightly more opaque against white
+    } else {
+        neuralMaterial.color.setHex(0x2DD4BF); // Therapeutic Teal
+        neuralMaterial.opacity = 0.6;
+    }
+}
+window.updateNeuralColor = updateNeuralColor;
 
 // ═══════════════════════════════════════════════════════════════
 //  INIT
@@ -1006,7 +1124,12 @@ function showSPPanel(type) {
 
     if (type === 'college') loadColleges();
     if (type === 'class') loadCollegesForDropdown('sel_clg_for_class');
-    if (type === 'student') loadCollegesForDropdown('sel_clg_for_student');
+    if (type === 'student') {
+        loadCollegesForDropdown('sel_clg_for_student').then(() => {
+            // Give it a tiny delay to paint options, then fetch classes for the first one (if any)
+            setTimeout(() => loadClassesForStudent(), 100);
+        });
+    }
 }
 
 async function createCollege() {
@@ -1082,13 +1205,24 @@ async function loadClasses(cid) {
     `).join('');
 }
 
-async function loadClassesForStudent() {
-    const cid = $('sel_clg_for_student').value;
-    if (!cid) return;
-    const res = await fetch(`${API_BASE}/api/classes?college_id=${cid}`);
-    const data = await res.json();
-    $('sel_class_for_student').innerHTML = '<option value="">Select Class...</option>' +
-        data.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+async function loadClassesForStudent(collegeId) {
+    const cid = collegeId || $('sel_clg_for_student').value;
+    const classSelect = $('sel_class_for_student');
+
+    if (!cid) {
+        classSelect.innerHTML = '<option value="">Select Class...</option>';
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/api/classes?college_id=${cid}`);
+        const data = await res.json();
+        classSelect.innerHTML = '<option value="">Select Class...</option>' +
+            data.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    } catch (e) {
+        console.error("Failed to load classes for student dropdown:", e);
+        classSelect.innerHTML = '<option value="">Error Loading Classes</option>';
+    }
 }
 
 async function createStudent() {

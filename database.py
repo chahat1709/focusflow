@@ -6,11 +6,57 @@ Handles College, Class, Student, and Session CRUD operations.
 import logging
 import time
 from typing import Optional, List, Dict
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
 logger = logging.getLogger('FocusFlow.DB')
 
 # ── Supabase Client ─────────────────────────────────────────────────
 _client = None
+
+# ── Circuit Breaker: stop hammering Supabase when it's unreachable ──
+_fail_count = 0           # Consecutive failures
+_circuit_open_until = 0   # Timestamp when circuit closes again
+_FAIL_THRESHOLD = 2       # Failures before circuit opens
+_COOLDOWN_SEC = 60        # Wait 60s before retrying after circuit opens
+_QUERY_TIMEOUT = 8        # Max seconds per Supabase query
+_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix='db')
+
+def _circuit_ok() -> bool:
+    """Check if circuit breaker allows requests."""
+    global _fail_count, _circuit_open_until
+    if _fail_count >= _FAIL_THRESHOLD:
+        if time.time() < _circuit_open_until:
+            return False  # Circuit is open, skip query
+        # Cooldown expired, allow one retry
+        _fail_count = _FAIL_THRESHOLD - 1
+    return True
+
+def _record_success():
+    global _fail_count
+    _fail_count = 0
+
+def _record_failure():
+    global _fail_count, _circuit_open_until
+    _fail_count += 1
+    if _fail_count >= _FAIL_THRESHOLD:
+        _circuit_open_until = time.time() + _COOLDOWN_SEC
+        logger.warning(f"DB circuit breaker OPEN — skipping queries for {_COOLDOWN_SEC}s")
+
+def _timed_query(fn):
+    """Run a Supabase query with timeout. Returns None on timeout."""
+    try:
+        future = _executor.submit(fn)
+        result = future.result(timeout=_QUERY_TIMEOUT)
+        _record_success()
+        return result
+    except FuturesTimeout:
+        logger.error(f"DB query timed out after {_QUERY_TIMEOUT}s")
+        _record_failure()
+        return None
+    except Exception as e:
+        logger.error(f"DB query error: {e}")
+        _record_failure()
+        return None
 
 def get_client():
     """Get or initialize Supabase client."""
@@ -116,20 +162,25 @@ def get_students(class_id: str) -> List[Dict]:
 
 def search_students(college_name: str = "", class_name: str = "", student_name: str = "") -> List[Dict]:
     """Search students with optional filters. Returns flat list with college/class info."""
+    if not _circuit_ok():
+        return []
     try:
         db = get_client()
         if not db:
             return []
-        # Join: students → classes → colleges
-        query = db.table("students").select(
-            "id, name, roll_no, age, notes, "
-            "classes(id, name, colleges(id, name, city))"
-        )
-        if student_name:
-            # Escape Postgres LIKE pattern chars to prevent unexpected wildcards
-            safe_name = student_name.replace('%', '\\%').replace('_', '\\_')
-            query = query.ilike("name", f"%{safe_name}%")
-        res = query.execute()
+        # Build query
+        def _run():
+            query = db.table("students").select(
+                "id, name, roll_no, age, notes, "
+                "classes(id, name, colleges(id, name, city))"
+            )
+            if student_name:
+                safe_name = student_name.replace('%', '\\%').replace('_', '\\_')
+                query = query.ilike("name", f"%{safe_name}%")
+            return query.execute()
+        res = _timed_query(_run)
+        if res is None:
+            return []
         data = res.data or []
 
         # Filter by college/class in Python
@@ -205,17 +256,21 @@ def get_sessions(student_id: str) -> List[Dict]:
 
 def get_recent_sessions(limit: int = 20) -> List[Dict]:
     """Get most recent sessions across ALL students with student/class/college info."""
+    if not _circuit_ok():
+        return []
     try:
         db = get_client()
         if not db:
             return []
-        # We fetch sessions and join with students, then classes, then colleges
-        # Supabase syntax for joins: select("*, students(*, classes(*, colleges(*)))")
-        res = (db.table("sessions")
-               .select("*, students(name, roll_no, class_id, classes(name, college_id, colleges(name)))")
-               .order("created_at", desc=True)
-               .limit(limit)
-               .execute())
+        def _run():
+            return (db.table("sessions")
+                   .select("*, students(name, roll_no, class_id, classes(name, college_id, colleges(name)))")
+                   .order("created_at", desc=True)
+                   .limit(limit)
+                   .execute())
+        res = _timed_query(_run)
+        if res is None:
+            return []
         
         # Flatten for the frontend
         flattened = []

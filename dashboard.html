@@ -16,7 +16,7 @@
 
         :root {
             --ocean-deep: #0A2E4D;
-            --ocean-mid: #1E3A5F;
+            --ocean-mid: #1e3a5f;
             --ocean-light: #2A4365;
             --therapeutic-teal: #2DD4BF;
             --healing-sage: #86EFAC;
@@ -32,6 +32,542 @@
             --shadow-glow: 0 0 20px rgba(45, 212, 191, 0.15);
         }
 
+        /* ══════════════════════════════════════════════════════
+           LIGHT THEME — Professional Colorful
+           Design: White + Colored Accents (Enterprise SaaS)
+           Palette: Teal · Indigo · Coral · Amber · Emerald
+        ══════════════════════════════════════════════════════ */
+        [data-theme="light"] {
+            --ocean-deep: #FFFFFF;
+            --ocean-mid: #F9FAFB;
+            --ocean-light: #F3F4F6;
+            --therapeutic-teal: #0D9488;
+            --healing-sage: #059669;
+            --calm-sky: #6366F1;
+            --warm-sand: #F59E0B;
+            --glass-bg: #FFFFFF;
+            --glass-border: #E5E7EB;
+            --glass-hover: #F9FAFB;
+            --text-primary: #111827;
+            --text-secondary: #6B7280;
+            --text-data: #1F2937;
+            --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+            --shadow-glow: 0 0 0 2px rgba(13, 148, 136, 0.1);
+        }
+
+        [data-theme="light"] body {
+            background: #F3F4F6;
+        }
+
+        /* ── Sidebar: clean white with colorful active ── */
+        [data-theme="light"] .sidebar {
+            background: #FFFFFF;
+            border-right: 1px solid #E5E7EB;
+            backdrop-filter: none;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.03);
+        }
+
+        [data-theme="light"] .brand-icon {
+            background: linear-gradient(135deg, #0D9488, #6366F1);
+            box-shadow: 0 3px 8px rgba(13, 148, 136, 0.25);
+            animation: none;
+        }
+
+        [data-theme="light"] .tab-btn {
+            color: #4B5563;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+
+        [data-theme="light"] .tab-btn:hover {
+            background: #F3F4F6;
+            border-color: transparent;
+            color: #0D9488;
+            transform: none;
+        }
+
+        [data-theme="light"] .tab-btn::before {
+            display: none;
+        }
+
+        [data-theme="light"] .tab-btn.active {
+            background: linear-gradient(135deg, rgba(13, 148, 136, 0.08), rgba(99, 102, 241, 0.05));
+            border-color: transparent;
+            border-left: 3px solid #0D9488;
+            color: #0D9488;
+            box-shadow: none;
+            font-weight: 600;
+        }
+
+        [data-theme="light"] .tab-btn.active .tab-icon {
+            transform: none;
+        }
+
+        /* ── Header: white with gradient brand ── */
+        [data-theme="light"] .header {
+            background: #FFFFFF;
+            border-bottom: 1px solid #E5E7EB;
+            backdrop-filter: none;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+
+        [data-theme="light"] .session-title span {
+            background: linear-gradient(135deg, #0D9488, #6366F1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        [data-theme="light"] .sidebar-toggle {
+            color: #4B5563;
+        }
+
+        [data-theme="light"] .sidebar-toggle:hover {
+            background: #F3F4F6;
+            color: #0D9488;
+        }
+
+        /* ══════════════════════════════════════════════
+           METRIC CARDS — Colored Left Border Accents
+           Card 1 (Focus):  Teal    #0D9488
+           Card 2 (BPM):    Coral   #F43F5E
+           Card 3 (Fatigue): Amber  #F59E0B
+           Card 4 (Mood):   Indigo  #6366F1
+        ══════════════════════════════════════════════ */
+        [data-theme="light"] .metric-card {
+            border: 1px solid #E5E7EB;
+            border-left: 4px solid #D1D5DB;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            transition: all 0.25s ease;
+        }
+
+        /* Card 1 (Focus): Very light mint green */
+        [data-theme="light"] .metric-card:nth-child(1) {
+            background: #ECFDF5;
+            border-left-color: #0D9488;
+            border-color: #A7F3D0;
+        }
+
+        [data-theme="light"] .metric-card:nth-child(1) .card-value {
+            color: #065F46;
+        }
+
+        [data-theme="light"] .metric-card:nth-child(1) .card-header {
+            color: #047857;
+        }
+
+        /* Card 2 (Heart Rate): Very light blush pink */
+        [data-theme="light"] .metric-card:nth-child(2) {
+            background: #FFF1F2;
+            border-left-color: #F43F5E;
+            border-color: #FECDD3;
+        }
+
+        [data-theme="light"] .metric-card:nth-child(2) .card-value {
+            color: #BE123C;
+        }
+
+        [data-theme="light"] .metric-card:nth-child(2) .card-header {
+            color: #E11D48;
+        }
+
+        /* Card 3 (Fatigue): Very light cream yellow */
+        [data-theme="light"] .metric-card:nth-child(3) {
+            background: #FFFBEB;
+            border-left-color: #F59E0B;
+            border-color: #FDE68A;
+        }
+
+        [data-theme="light"] .metric-card:nth-child(3) .card-value {
+            color: #92400E;
+        }
+
+        [data-theme="light"] .metric-card:nth-child(3) .card-header {
+            color: #B45309;
+        }
+
+        /* Card 4 (Mood): Very light lavender */
+        [data-theme="light"] .metric-card:nth-child(4) {
+            background: #EEF2FF;
+            border-left-color: #6366F1;
+            border-color: #C7D2FE;
+        }
+
+        [data-theme="light"] .metric-card:nth-child(4) .card-value {
+            color: #3730A3;
+        }
+
+        [data-theme="light"] .metric-card:nth-child(4) .card-header {
+            color: #4338CA;
+        }
+
+        /* Hover states */
+        [data-theme="light"] .metric-card:hover {
+            transform: translateY(-3px);
+        }
+
+        [data-theme="light"] .metric-card:nth-child(1):hover {
+            background: #D1FAE5;
+            box-shadow: 0 8px 20px rgba(13, 148, 136, 0.15);
+        }
+
+        [data-theme="light"] .metric-card:nth-child(2):hover {
+            background: #FFE4E6;
+            box-shadow: 0 8px 20px rgba(244, 63, 94, 0.15);
+        }
+
+        [data-theme="light"] .metric-card:nth-child(3):hover {
+            background: #FEF3C7;
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.15);
+        }
+
+        [data-theme="light"] .metric-card:nth-child(4):hover {
+            background: #E0E7FF;
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.15);
+        }
+
+        [data-theme="light"] .card-header {
+            color: #6B7280;
+            font-weight: 600;
+        }
+
+        [data-theme="light"] .card-status {
+            color: #059669;
+        }
+
+        /* ── Charts: white cards with colored header accent ── */
+        [data-theme="light"] .chart-section {
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+        }
+
+        [data-theme="light"] .chart-header {
+            color: #1F2937;
+            border-bottom: 1px solid #F3F4F6;
+        }
+
+        /* ── Status Card ── */
+        [data-theme="light"] .status-card {
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 12px;
+        }
+
+        [data-theme="light"] .status-header {
+            color: #6B7280;
+        }
+
+        [data-theme="light"] .status-text.online {
+            color: #059669;
+        }
+
+        /* ── Modals ── */
+        [data-theme="light"] .modal-overlay {
+            background: rgba(17, 24, 39, 0.25);
+            backdrop-filter: blur(6px);
+        }
+
+        [data-theme="light"] .modal {
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.12);
+        }
+
+        [data-theme="light"] .modal-header {
+            border-bottom: 1px solid #F3F4F6;
+        }
+
+        [data-theme="light"] .modal-title {
+            color: #111827;
+        }
+
+        [data-theme="light"] .modal-close {
+            color: #9CA3AF;
+        }
+
+        [data-theme="light"] .modal-close:hover {
+            color: #374151;
+        }
+
+        /* ── Device Items ── */
+        [data-theme="light"] .device-item {
+            background: #F9FAFB;
+            border: 1px solid #E5E7EB;
+            border-radius: 10px;
+        }
+
+        [data-theme="light"] .device-item:hover {
+            background: #FFFFFF;
+            border-color: #0D9488;
+            box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.1);
+            transform: none;
+        }
+
+        [data-theme="light"] .device-name {
+            color: #111827;
+        }
+
+        [data-theme="light"] .device-address {
+            color: #6B7280;
+        }
+
+        /* ── Sensors ── */
+        [data-theme="light"] .sensor-card {
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 10px;
+        }
+
+        [data-theme="light"] .sensor-name {
+            color: #111827;
+        }
+
+        [data-theme="light"] .sensor-location {
+            color: #9CA3AF;
+        }
+
+        [data-theme="light"] .sensor-map-container {
+            background: #F9FAFB;
+            border: 1px solid #E5E7EB;
+        }
+
+        /* ── Buttons: gradient teal-to-indigo ── */
+        [data-theme="light"] .btn-primary {
+            background: linear-gradient(135deg, #0D9488, #6366F1);
+            color: #FFFFFF;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(13, 148, 136, 0.2);
+            font-weight: 600;
+        }
+
+        [data-theme="light"] .btn-primary:hover {
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25);
+            transform: translateY(-2px);
+        }
+
+        [data-theme="light"] #connectBtn {
+            background: linear-gradient(135deg, #0D9488, #6366F1);
+            color: #FFFFFF;
+            border-radius: 10px;
+        }
+
+        [data-theme="light"] #connectBtn:hover {
+            box-shadow: 0 4px 16px rgba(13, 148, 136, 0.3);
+        }
+
+        [data-theme="light"] .btn-connect {
+            background: linear-gradient(135deg, rgba(13, 148, 136, 0.04), rgba(99, 102, 241, 0.04));
+            border: 1px solid #0D9488;
+            color: #0D9488;
+            border-radius: 10px;
+        }
+
+        [data-theme="light"] .btn-connect:hover {
+            background: linear-gradient(135deg, rgba(13, 148, 136, 0.08), rgba(99, 102, 241, 0.06));
+        }
+
+        /* ── Alert Banner ── */
+        [data-theme="light"] #alertBanner {
+            background: #FFFFFF;
+            color: #111827;
+            border: 1px solid #E5E7EB;
+            border-left: 4px solid #F59E0B;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        /* ── Scrollbar ── */
+        [data-theme="light"] ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        [data-theme="light"] ::-webkit-scrollbar-thumb {
+            background: #D1D5DB;
+            border-radius: 10px;
+        }
+
+        [data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+            background: #9CA3AF;
+        }
+
+        /* ── Signal Bars: colorful health ── */
+        [data-theme="light"] .signal-bar {
+            background: #E5E7EB;
+        }
+
+        [data-theme="light"] .signal-bar.good {
+            background: #059669;
+            box-shadow: 0 0 6px rgba(5, 150, 105, 0.3);
+        }
+
+        [data-theme="light"] .signal-bar.fair {
+            background: #F59E0B;
+        }
+
+        [data-theme="light"] .signal-bar.poor {
+            background: #EF4444;
+        }
+
+        /* ── Neuro State Badge ── */
+        [data-theme="light"] #neuroStateBadge {
+            background: linear-gradient(135deg, rgba(13, 148, 136, 0.08), rgba(99, 102, 241, 0.06)) !important;
+            border-color: #0D9488 !important;
+            color: #0D9488 !important;
+        }
+
+        /* ── Form Inputs ── */
+        [data-theme="light"] input,
+        [data-theme="light"] select,
+        [data-theme="light"] textarea {
+            background: #FFFFFF !important;
+            border: 1px solid #D1D5DB !important;
+            border-radius: 8px !important;
+            color: #111827 !important;
+        }
+
+        [data-theme="light"] input:focus,
+        [data-theme="light"] select:focus,
+        [data-theme="light"] textarea:focus {
+            border-color: #6366F1 !important;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+            outline: none;
+        }
+
+        [data-theme="light"] input::placeholder {
+            color: #9CA3AF !important;
+        }
+
+        /* ── Student Panel / DB cards ── */
+        [data-theme="light"] .sp-btn {
+            background: linear-gradient(135deg, #0D9488, #6366F1) !important;
+            color: #FFFFFF !important;
+        }
+
+        [data-theme="light"] .db-result-card {
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+        }
+
+        [data-theme="light"] .db-result-card:hover {
+            border-color: #6366F1;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+        }
+
+        [data-theme="light"] .db-search {
+            background: #FFFFFF !important;
+            border: 1px solid #D1D5DB !important;
+        }
+
+        [data-theme="light"] .db-search:focus {
+            border-color: #6366F1 !important;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+        }
+
+        /* ── Status Dots ── */
+        [data-theme="light"] #statusIndicator.idle {
+            background: #D1D5DB;
+        }
+
+        [data-theme="light"] #statusIndicator.scanning {
+            background: #F59E0B;
+        }
+
+        [data-theme="light"] #statusIndicator.connected {
+            background: #059669;
+        }
+
+        [data-theme="light"] #statusIndicator.error {
+            background: #EF4444;
+        }
+
+        /* ── Sensor Test status ── */
+        [data-theme="light"] .sensor-status-dot.pass {
+            background: #059669;
+            box-shadow: 0 0 8px rgba(5, 150, 105, 0.4);
+        }
+
+        [data-theme="light"] .sensor-status-dot.warn {
+            background: #F59E0B;
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+        }
+
+        [data-theme="light"] .sensor-status-dot.fail {
+            background: #EF4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+        }
+
+        /* ── 3D Canvas: show in light mode with adjusted opacity ── */
+        [data-theme="light"] #neuralCanvas {
+            opacity: 0.5 !important;
+        }
+
+
+
+
+
+
+        /* === THEME TOGGLE SWITCH === */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+            margin-right: 16px;
+        }
+
+        .theme-toggle-track {
+            width: 48px;
+            height: 26px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 13px;
+            position: relative;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        [data-theme="light"] .theme-toggle-track {
+            background: #E5E7EB;
+            border-color: #D1D5DB;
+        }
+
+        .theme-toggle-thumb {
+            width: 22px;
+            height: 22px;
+            background: var(--therapeutic-teal);
+            border-radius: 50%;
+            position: absolute;
+            top: 1px;
+            left: 1px;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        [data-theme="light"] .theme-toggle-thumb {
+            background: #F59E0B;
+        }
+
+        .theme-toggle-thumb.light {
+            left: 23px;
+        }
+
+        .theme-toggle-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -44,6 +580,7 @@
             color: var(--text-primary);
             height: 100vh;
             overflow: hidden;
+            overflow-y: auto;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
@@ -76,7 +613,7 @@
         }
 
         .sidebar {
-            width: 280px;
+            width: clamp(180px, 20vw, 280px);
             background: var(--glass-bg);
             backdrop-filter: blur(20px) saturate(180%);
             border-right: 1px solid var(--glass-border);
@@ -89,8 +626,8 @@
         }
 
         .app-container.collapsed .sidebar {
-            transform: translateX(-280px);
-            margin-right: -280px;
+            margin-left: calc(-1 * clamp(180px, 20vw, 280px));
+            visibility: hidden;
         }
 
         .sidebar-toggle {
@@ -220,8 +757,8 @@
         }
 
         .header {
-            height: 80px;
-            padding: 0 32px;
+            height: clamp(42px, 6vh, 80px);
+            padding: 0 clamp(12px, 2vw, 32px);
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -295,6 +832,7 @@
             opacity: 0;
             transform: translateX(20px);
             pointer-events: none;
+            overflow-y: auto;
             transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
             padding: 32px;
             overflow-y: auto;
@@ -318,7 +856,7 @@
             backdrop-filter: blur(20px);
             border: 1px solid var(--glass-border);
             border-radius: 16px;
-            padding: 24px;
+            padding: clamp(10px, 1.5vw, 24px);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             animation: fadeInUp 0.6s ease backwards;
         }
@@ -352,7 +890,7 @@
         }
 
         .card-value {
-            font-size: 42px;
+            font-size: clamp(20px, 3.5vw, 42px);
             font-weight: 300;
             font-family: 'JetBrains Mono', monospace;
             color: var(--text-data);
@@ -377,8 +915,8 @@
             backdrop-filter: blur(20px);
             border: 1px solid var(--glass-border);
             border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 24px;
+            padding: clamp(10px, 1.5vw, 24px);
+            margin-bottom: clamp(8px, 1vw, 24px);
         }
 
         .chart-header {
@@ -395,7 +933,7 @@
 
         .chart-container {
             position: relative;
-            height: 300px;
+            height: clamp(140px, 30vh, 300px);
         }
 
         .status-card {
@@ -573,6 +1111,141 @@
             font-size: 12px;
             font-family: 'JetBrains Mono', monospace;
             color: var(--text-secondary);
+        }
+
+        /* ══════════════════════════════════════════════════════
+           RESPONSIVE: 14-inch Laptops (1366x768)
+           Triggers on small height OR small width screens
+        ══════════════════════════════════════════════════════ */
+        @media (max-height: 800px),
+        (max-width: 1400px) {
+            .header {
+                height: 50px;
+                padding: 0 16px;
+            }
+
+            .header h1 {
+                font-size: 14px;
+            }
+
+            .sidebar {
+                width: 220px;
+                padding: 16px 12px;
+            }
+
+            .app-container.collapsed .sidebar {
+                margin-left: -220px;
+                visibility: hidden;
+            }
+
+            .brand {
+                font-size: 15px;
+                margin-bottom: 16px;
+            }
+
+            .brand-icon {
+                width: 26px;
+                height: 26px;
+                font-size: 14px;
+            }
+
+            .metric-card {
+                padding: 14px;
+                border-radius: 12px;
+            }
+
+            .card-header {
+                font-size: 10px;
+                margin-bottom: 8px;
+                letter-spacing: 1px;
+            }
+
+            .card-value {
+                font-size: 28px;
+                margin-bottom: 4px;
+            }
+
+            .card-unit {
+                font-size: 11px;
+            }
+
+            .card-status {
+                font-size: 10px;
+                margin-top: 4px;
+            }
+
+            .chart-section {
+                padding: 14px;
+                margin-bottom: 12px;
+                border-radius: 12px;
+            }
+
+            .chart-header {
+                font-size: 11px;
+                margin-bottom: 10px;
+            }
+
+            .chart-container {
+                height: 200px;
+            }
+
+            .tab-btn {
+                padding: 10px 12px;
+                font-size: 11px;
+            }
+
+            .tab-icon {
+                font-size: 16px;
+            }
+
+            .tab-panel {
+                padding: 16px;
+            }
+
+            .status-card {
+                padding: 14px;
+                border-radius: 12px;
+            }
+
+            .theme-toggle {
+                margin-right: 8px;
+            }
+
+            .sidebar-toggle {
+                font-size: 20px;
+            }
+        }
+
+        /* ══════════════════════════════════════════════════════
+           RESPONSIVE: Very small height (< 700px)
+           For 768p screens at 100% zoom
+        ══════════════════════════════════════════════════════ */
+        @media (max-height: 700px) {
+            .header {
+                height: 42px;
+                padding: 0 12px;
+            }
+
+            .card-value {
+                font-size: 24px;
+            }
+
+            .metric-card {
+                padding: 10px;
+            }
+
+            .chart-container {
+                height: 160px;
+            }
+
+            .chart-section {
+                padding: 10px;
+                margin-bottom: 8px;
+            }
+
+            .tab-panel {
+                padding: 12px;
+            }
         }
 
         @media (max-width: 768px) {
@@ -1187,6 +1860,12 @@
                         CALIBRATING...</div>
                 </div>
                 <div class="session-controls">
+                    <div class="theme-toggle" onclick="toggleTheme()" title="Switch Theme">
+                        <span class="theme-toggle-label" id="themeLabel">🌙</span>
+                        <div class="theme-toggle-track">
+                            <div class="theme-toggle-thumb" id="themeThumb">🌙</div>
+                        </div>
+                    </div>
                     <button class="btn-primary" id="stopSessionBtn" onclick="endSession()"
                         style="display:none; background:linear-gradient(135deg, #EF4444, #F472B6);">⏹ STOP</button>
                 </div>

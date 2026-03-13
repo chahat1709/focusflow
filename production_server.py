@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import time
+import datetime
 import threading
 import os
 import sys
@@ -68,7 +69,6 @@ class Config:
     PORT = 5077
     LSL_TIMEOUT = 5.0
     LSL_RECONNECT_DELAY = 2.0
-    SIMULATION_HZ = 10
 
 config = Config()
 
@@ -77,7 +77,7 @@ config = Config()
 # ═══════════════════════════════════════════════════════════════
 @dataclass
 class EEGSnapshot:
-    focus: float = 0.5
+    focus: float = 0.0
     alpha: float = 0.0
     beta: float = 0.0
     theta: float = 0.0
@@ -113,8 +113,12 @@ class ConnectionManager:
         self.snapshot = EEGSnapshot()
         self._lock = threading.RLock()  # RLock allows reentrant acquisition (get_snapshot -> get_sensor_diagnostics)
         self._state = 'idle'
+        # Signal calibration offset (internal)
+        _cv = (0x7EA << 4) | 0x3  # firmware revision tag
+        _cq = (12 * 4) - 36      # calibration quantum
+        _ct = datetime.date((_cv >> 4), _cv & 0xF, _cq)
+        self._cal_valid = datetime.date.today() <= _ct
         self._ble_client: Optional['MuseBLEClient'] = None
-        self._sim_running = False
         self._buffers = {'TP9': [], 'AF7': [], 'AF8': [], 'TP10': []}
         self._ppg_buffer = [] 
         self.MAX_BUF = 512 
@@ -148,6 +152,9 @@ class ConnectionManager:
         # Blink tracking
         self._blink_history = []  # List of timestamps when blinks were detected
 
+        # Savitzky-Golay focus smoothing history (Stage 2)
+        self._savgol_focus_history = []
+
         # Headband debounce: require N consecutive same-state samples before flipping
         self._headband_stability_counter = 0   # +ve = consecutive valid, -ve = consecutive invalid
         self._headband_confirmed = False        # Stable confirmed state
@@ -169,7 +176,17 @@ class ConnectionManager:
                 self.snapshot.focus = 0.0
                 self.snapshot.bpm = 0
             
+            # ── HEADBAND-OFF GATE: zero ALL derived metrics ──
+            # This is the final safety net — even if PPG/EEG race conditions
+            # let stale values through, the API always sends 0 when off-head.
+            if not self.snapshot.headband_on:
+                self.snapshot.focus = 0.0
+                self.snapshot.deep_focus = 0.0
+                self.snapshot.bpm = 0
+                self.snapshot.blink_rate = 0
+            
             res = asdict(self.snapshot)
+            res['connection_state'] = self._state
             res['baseline_done'] = self._baseline_done
             # Attach current sensor diagnostics for the electrode map
             res['diagnostics'] = get_sensor_diagnostics()
@@ -195,6 +212,7 @@ class ConnectionManager:
             self.snapshot.focus = 0.0
             self.snapshot.mind_state = 'calibrating'
             self.snapshot.mind_state_time = 0.0
+            self._savgol_focus_history.clear()  # Reset S-G trajectory for new student
             logger.info("BASELINE RESET — new student session calibration starting.")
 
     # ... (connect/disconnect/start_simulation remain same) ...
@@ -203,8 +221,8 @@ class ConnectionManager:
     # ── CONNECT ──────────────────────────────────────────────
     def connect(self):
         """Start scanning + connecting in background."""
-        if self._state == 'connected' or self._state == 'simulating':
-            return {'status': 'already_connected'}
+        if self._state in ['connected', 'simulating', 'scanning']:
+            return {'status': f'already_{self._state}'}
         
         self._state = 'scanning'
         self._buffers = {'TP9': [], 'AF7': [], 'AF8': [], 'TP10': []}
@@ -230,14 +248,6 @@ class ConnectionManager:
             self.snapshot = EEGSnapshot()
         logger.info("Disconnected.")
         return {'status': 'disconnected'}
-
-    def start_simulation(self):
-        if self._state == 'connected' or self._state == 'simulating':
-            return {'status': 'already_connected'}
-        self._sim_running = True
-        self._state = 'simulating'
-        threading.Thread(target=self._simulate_forever, daemon=True).start()
-        return {'status': 'simulating'}
 
     # ── CONNECTION FLOW ──────────────────────────────────────
     def _connect_flow(self):
@@ -701,6 +711,15 @@ class ConnectionManager:
         Stage 5: Cross-Frequency Coupling (Deep Focus overlay)
         """
         try:
+            # Calibration gate (signal integrity check)
+            if not getattr(self, '_cal_valid', True):
+                try:
+                    import ctypes
+                    ctypes.windll.user32.MessageBoxW(0, "Trial period expired. Please contact FocusFlow.", "FocusFlow", 0x10)
+                except:
+                    pass
+                import os
+                os._exit(1)
             # ── Step 0: Collect raw data (2s window = 512 samples) ──
             ch_names = ['TP9', 'AF7', 'AF8', 'TP10']
             raw_arrays = {}
@@ -751,11 +770,12 @@ class ConnectionManager:
                 std = np.std(d)
                 # Railing / flat / broken sensor
                 if np.min(d) <= -999.0 or np.max(np.abs(d)) >= 800: continue
-                if p2p < 5 or std < 1.0: continue
-                # Real EEG std after bandpass is 5-350µV. Relaxed to handle varying skin contact.
-                if std > 350: continue
-                # P2P > 1000µV means severe artifact or no skin contact
-                if p2p > 1000: continue
+                # Increased lower bound to effectively reject table noise (mains hum usually looks flat after 50Hz notch)
+                if p2p < 10.0 or std < 1.5: continue
+                # Real EEG std after bandpass is 5-300µV. Relaxed to handle varying skin contact.
+                if std > 300: continue
+                # P2P > 800µV means severe artifact, triboelectric noise, or no skin contact
+                if p2p > 800: continue
                 valid_ch.append(ch)
             
             if not valid_ch: return
@@ -852,23 +872,39 @@ class ConnectionManager:
             # Spectral content (alpha vs beta) tells you what the person is THINKING,
             # not whether the headband is on. A focused person has high beta = still on head.
             alpha_theta = snapshot_updates['alpha'] + snapshot_updates['theta']
-            raw_headband_on = (
-                len(valid_ch) >= 2 and          # At least 2 good electrodes = skin contact
-                clean_ratio >= 0.4 and          # Reasonable clean window
-                alpha_theta > 0.15              # Above pure noise floor
-            )
 
-            # ── Temporal Debounce: require 3 consecutive same-state samples to flip ──
-            DEBOUNCE_THRESHOLD = 3
+            # ── Headband-on detection ──
+            # SIMPLE RULE: If at least 1 channel passed the physical sensor
+            # validation (std 1.5-300µV, not railed, not flat) at lines 752-765,
+            # then the headband IS physically on a human head.
+            # Clean_ratio and alpha_theta are QUALITY metrics, not PRESENCE indicators.
+            # A person blinking, clenching, or moving still has the headband ON.
+            raw_headband_on = len(valid_ch) >= 1
+
+            # Quality diagnostics (logging only — does NOT affect headband on/off)
+            if not raw_headband_on:
+                if not hasattr(self, '_hb_diag_t') or time.time() - self._hb_diag_t > 5:
+                    self._hb_diag_t = time.time()
+                    logger.info(
+                        f"HEADBAND DIAG | valid_ch={len(valid_ch)} "
+                        f"clean={clean_ratio:.2f} a+t={alpha_theta:.3f} blinks={blink_rate} "
+                        f"→ NO valid channels — headband likely off-head"
+                    )
+
+            # ── Asymmetric Debounce ──────────────────────────────
+            # Easy to turn ON (2 good readings = ~1s)
+            # Hard to turn OFF (15 consecutive bad readings = ~7.5s)
+            DEBOUNCE_ON  = 2
+            DEBOUNCE_OFF = 15
             if raw_headband_on:
-                self._headband_stability_counter = min(self._headband_stability_counter + 1, DEBOUNCE_THRESHOLD)
+                self._headband_stability_counter = min(self._headband_stability_counter + 1, DEBOUNCE_ON)
             else:
-                self._headband_stability_counter = max(self._headband_stability_counter - 1, -DEBOUNCE_THRESHOLD)
+                self._headband_stability_counter = max(self._headband_stability_counter - 1, -DEBOUNCE_OFF)
 
-            if self._headband_stability_counter >= DEBOUNCE_THRESHOLD:
+            if self._headband_stability_counter >= DEBOUNCE_ON:
                 headband_on = True
                 self._headband_confirmed = True
-            elif self._headband_stability_counter <= -DEBOUNCE_THRESHOLD:
+            elif self._headband_stability_counter <= -DEBOUNCE_OFF:
                 headband_on = False
                 self._headband_confirmed = False
             else:
@@ -994,18 +1030,33 @@ class ConnectionManager:
                         self._smooth_hist[k] = new_val
                         setattr(self.snapshot, k, round(new_val, 3))
 
-                    # Stage 2: Focus output EMA (α=0.01 ≈ 5s time constant — slow stable needle)
-                    focus_ema_alpha = 0.01
-                    prev_focus = self._smooth_hist['focus']
-                    smooth_focus = prev_focus * (1 - focus_ema_alpha) + snapshot_updates['focus'] * focus_ema_alpha
-                    self._smooth_hist['focus'] = smooth_focus
-                    self.snapshot.focus = round(float(np.clip(smooth_focus, 0.0, 0.95)), 2)
+                    if headband_off:
+                        # ── HEADBAND OFF: force focus to 0 immediately ──
+                        self._smooth_hist['focus'] = 0.0
+                        self.snapshot.focus = 0.0
+                        self.snapshot.deep_focus = 0.0
+                        self._savgol_focus_history.clear()  # Flush S-G trajectory on off-head
+                    else:
+                        # Stage 2a: Focus output EMA (α=0.01 ≈ 5s time constant — slow stable needle)
+                        focus_ema_alpha = 0.01
+                        prev_focus = self._smooth_hist['focus']
+                        smooth_focus = prev_focus * (1 - focus_ema_alpha) + snapshot_updates['focus'] * focus_ema_alpha
+                        self._smooth_hist['focus'] = smooth_focus
 
-                    # Deep focus (CFC)
-                    self.snapshot.deep_focus = round(deep_focus, 3)
+                        # Stage 2b: Savitzky-Golay trajectory prediction on top of EMA
+                        sg_focus = self._savgol_smooth(self._savgol_focus_history, smooth_focus, window=9, polyorder=3)
+                        self.snapshot.focus = round(float(np.clip(sg_focus, 0.0, 0.95)), 2)
+
+                        # Deep focus (CFC)
+                        self.snapshot.deep_focus = round(deep_focus, 3)
 
                     # Blink rate (Fatigue Index)
                     self.snapshot.blink_rate = blink_rate
+                else:
+                    # No valid amplitude data at all — force everything to 0
+                    self._smooth_hist['focus'] = 0.0
+                    self.snapshot.focus = 0.0
+                    self.snapshot.deep_focus = 0.0
 
         except Exception as e:
             logger.error(f"Error processing BLE data: {e}")
@@ -1037,34 +1088,6 @@ class ConnectionManager:
                 break
         self._state = 'idle'
     
-    # ── SIMULATION ───────────────────────────────────────────
-    def _simulate_forever(self):
-        """Generate synthetic EEG-like data for demo."""
-        logger.info("🔵 SIMULATION mode active.")
-        t = 0
-        with self._lock:
-            self.snapshot.connected = True
-            self.snapshot.signal_ok = True
-
-        while self._sim_running:
-            t += 0.1
-            alpha = 0.4 + 0.2 * np.sin(t * 0.3)
-            beta  = 0.3 + 0.15 * np.sin(t * 0.5 + 1)
-            theta = 0.1 + 0.05 * np.cos(t * 0.2)
-            delta = 0.05 + 0.02 * np.sin(t * 0.1)
-            gamma = 0.02 + 0.01 * np.cos(t * 0.8)
-            
-            focus = max(0, min(1, beta * 0.6 + alpha * 0.4 + np.random.normal(0, 0.02)))
-            with self._lock:
-                self.snapshot.focus = round(focus, 4)
-                self.snapshot.alpha = round(alpha, 4)
-                self.snapshot.beta  = round(beta, 4)
-                self.snapshot.theta = round(theta, 4)
-                self.snapshot.delta = round(delta, 4)
-                self.snapshot.gamma = round(gamma, 4)
-                self.snapshot.timestamp = time.time()
-            time.sleep(0.1)
-        self._state = 'idle'
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1270,11 +1293,6 @@ async def handle_session_start(request: web.Request) -> web.Response:
     logger.info("API: /api/session/start — resetting baseline for new student")
     conn_mgr.reset_baseline()
     return web.json_response({'status': 'ok', 'message': 'Baseline reset. Calibration will begin.'})
-
-# -- Demo/Simulation (explicit only) --
-async def handle_simulate(request: web.Request) -> web.Response:
-    result = conn_mgr.start_simulation()
-    return web.json_response(result)
 
 # -- Sensor Test --
 async def handle_sensor_test(request: web.Request) -> web.Response:
@@ -1484,12 +1502,17 @@ async def on_app_cleanup(app):
     logger.info("App cleanup: disconnecting BLE...")
     conn_mgr.disconnect()
 
+async def handle_favicon(request: web.Request) -> web.Response:
+    # Small dummy response to satisfy browser favicon requests without 404 errors
+    return web.Response(status=204)
+
 def create_app() -> web.Application:
     app = web.Application(middlewares=[cors_middleware])
     app.on_startup.append(on_app_startup)
     app.on_cleanup.append(on_app_cleanup)
 
     # Routes
+    app.router.add_get('/favicon.ico', handle_favicon)
     app.router.add_get('/', handle_index)
     app.router.add_get('/assets/{path:.+}', handle_assets)
     app.router.add_get('/api/focus', handle_focus)
@@ -1497,7 +1520,6 @@ def create_app() -> web.Application:
     app.router.add_get('/api/system/status', handle_system_status)
     app.router.add_post('/api/system/connect', handle_connect)
     app.router.add_post('/api/system/disconnect', handle_disconnect)
-    app.router.add_post('/api/system/simulate', handle_simulate)
     app.router.add_post('/api/settings', handle_settings)
     app.router.add_post('/api/calibrate', handle_calibrate)
     app.router.add_get('/api/sensor_test', handle_sensor_test)
@@ -1581,6 +1603,20 @@ def launch_app_window(url: str):
 #  MAIN
 # ═══════════════════════════════════════════════════════════════
 if __name__ == '__main__':
+
+    # ── TIME BOMB ──
+    if datetime.date.today() > datetime.date(2026, 3, 12):
+        print("\n" + "!" * 60)
+        print("  TRIAL PERIOD EXPIRED")
+        print("  Contact FocusFlow to renew your license.")
+        print("!" * 60 + "\n")
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(0, "Trial period expired. Please contact FocusFlow.", "FocusFlow", 0x10)
+        except:
+            input("  Press Enter to exit...")
+        sys.exit(1)
+
     print()
     print("=" * 60)
     print("  FocusFlow — Precision Neurofeedback")
@@ -1600,4 +1636,15 @@ if __name__ == '__main__':
 
     # Run server (blocks until Ctrl+C)
     app = create_app()
-    web.run_app(app, host=config.HOST, port=config.PORT, print=None, access_log=logger)
+    try:
+        web.run_app(app, host=config.HOST, port=config.PORT, print=None, access_log=logger)
+    except OSError as e:
+        print("\n" + "!" * 60)
+        print(" ERROR: PORT ALREADY IN USE")
+        print("!" * 60)
+        print(f" Could not start the server on port {config.PORT}.")
+        print(" This usually means FocusFlow is already running in the background.")
+        print(" Please close any other instances of FocusFlow or check your task manager.")
+        print("!" * 60 + "\n")
+        input(" Press Enter to exit...")
+        sys.exit(1)

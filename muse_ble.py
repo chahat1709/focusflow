@@ -359,8 +359,16 @@ class MuseBLEClient:
                     # Re-send start commands
                     await self._client.write_gatt_char(CONTROL_UUID, CMD_START, response=False)
                     logger.info("[OK] Reconnected successfully")
+                    
+                    # Reset stall timers to prevent immediate re-trigger
+                    now = time.time()
+                    for ch in self._last_packet_times:
+                        self._last_packet_times[ch] = now
+                        
                 except Exception as e:
                     logger.error(f"Reconnect failed: {e}")
+                    # Give up and let the main loop do a full robust re-scan
+                    self._connected = False
 
     def get_sqi(self) -> float:
         """Calculate Signal Quality Index (0.0 to 1.0)."""
