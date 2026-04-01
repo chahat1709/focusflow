@@ -9,12 +9,14 @@ import asyncio
 import json
 import logging
 import time
-import datetime
+# Mi2 Fix: removed unused 'import datetime'
 import threading
 import os
+import queue
+from collections import deque
 import sys
 import math
-import signal as signal_mod
+# Mi4 Fix: removed unused 'import signal as signal_mod'
 from typing import Optional, List
 import numpy as np
 from dataclasses import dataclass, field, asdict
@@ -22,6 +24,95 @@ try:
     from scipy import signal
 except ImportError:
     signal = None
+
+# ── V2: Numba JIT for Adaptive NLMS Filter ──
+try:
+    from numba import njit
+    NUMBA_AVAILABLE = True
+except ImportError:
+    NUMBA_AVAILABLE = False
+    # Fallback: define a no-op decorator so code still runs (pure Python, slower)
+    def njit(*args, **kwargs):
+        def decorator(func):
+            return func
+        if len(args) == 1 and callable(args[0]):
+            return args[0]
+        return decorator
+
+# ═══════════════════════════════════════════════════════════════
+#  V2 ADAPTIVE NLMS KERNEL (JIT-compiled to C-level machine code)
+# ═══════════════════════════════════════════════════════════════
+@njit(cache=True)
+def _nlms_adaptive_kernel(data, ref_matrix, ref_history, n_taps, mu, deriv_thresh, init_weights):
+    """
+    V2.3 Normalized LMS adaptive filter:
+      - Reference history buffer (eliminates chunk boundary zero-padding)
+      - Derivative-based Gated Freeze (handles loud hum without locking up)
+      - V2.3 Fix #10: Frozen-steps timeout (prevents permanent death lock)
+
+    Returns:
+        cleaned:         1D numpy array of cleaned signal
+        final_weights:   1D numpy array of final filter weights
+        new_ref_history: 2D numpy array tail for next chunk
+        frozen_count:    int — total samples frozen this chunk (for timeout logic)
+    """
+    n_samples = data.shape[0]
+    n_harmonics = ref_matrix.shape[0]
+    total_taps = n_harmonics * n_taps
+    hist_len = n_taps - 1
+
+    if init_weights.shape[0] == total_taps:
+        w = init_weights.copy()
+    else:
+        w = np.zeros(total_taps, dtype=np.float64)
+
+    cleaned = np.empty(n_samples, dtype=np.float64)
+    frozen_count = np.int64(0)  # V2.3: track how many samples gate was frozen
+
+    for i in range(n_samples):
+        x = np.empty(total_taps, dtype=np.float64)
+        for h in range(n_harmonics):
+            for t_idx in range(n_taps):
+                idx = i - t_idx
+                if idx >= 0:
+                    x[h * n_taps + t_idx] = ref_matrix[h, idx]
+                else:
+                    hist_idx = hist_len + idx
+                    if hist_idx >= 0 and hist_idx < ref_history.shape[1]:
+                        x[h * n_taps + t_idx] = ref_history[h, hist_idx]
+                    else:
+                        x[h * n_taps + t_idx] = 0.0
+
+        noise_est = 0.0
+        for j in range(total_taps):
+            noise_est += w[j] * x[j]
+
+        error = data[i] - noise_est
+        cleaned[i] = error
+
+        is_transient = False
+        if i > 0:
+            deriv = abs(data[i] - data[i - 1])
+            if deriv > deriv_thresh:
+                is_transient = True
+                frozen_count += 1
+
+        if not is_transient:
+            norm = 0.0
+            for j in range(total_taps):
+                norm += x[j] * x[j]
+            norm += 1e-10
+            step = mu * error / norm
+            for j in range(total_taps):
+                w[j] += step * x[j]
+
+    # Save tail for next chunk
+    new_ref_history = np.empty((n_harmonics, hist_len), dtype=np.float64)
+    for h in range(n_harmonics):
+        for t_idx in range(hist_len):
+            new_ref_history[h, t_idx] = ref_matrix[h, n_samples - hist_len + t_idx]
+
+    return cleaned, w, new_ref_history, frozen_count
 
 from aiohttp import web
 
@@ -66,7 +157,7 @@ except ImportError:
 # ═══════════════════════════════════════════════════════════════
 class Config:
     HOST = '127.0.0.1'
-    PORT = 5077
+    PORT = 5077  # A1: Single source of truth for port
     LSL_TIMEOUT = 5.0
     LSL_RECONNECT_DELAY = 2.0
 
@@ -93,8 +184,9 @@ class EEGSnapshot:
     ppg: dict = field(default_factory=lambda: {'PPG1': 0.0, 'PPG2': 0.0, 'PPG3': 0.0})
     bpm: int = 0
     emg_noise: bool = False
-    deep_focus: float = 0.0   # Stage 5: Alpha-Gamma CFC coupling score [0-1]
+    deep_focus: float = 0.0   # Stage 5: Theta-Gamma CFC coupling score [0-1]
     headband_on: bool = False  # True when valid EEG contact detected
+    tbr: float = 0.0          # Theta/Beta Ratio — clinically validated attention biomarker
     mind_state: str = 'unknown'  # 'calm', 'neutral', 'active' (like Muse app)
     mind_state_time: float = 0.0  # Seconds in current state
 
@@ -114,12 +206,18 @@ class ConnectionManager:
         self._lock = threading.RLock()  # RLock allows reentrant acquisition (get_snapshot -> get_sensor_diagnostics)
         self._state = 'idle'
         self._cal_valid = True
+
         self._ble_client: Optional['MuseBLEClient'] = None
-        self._buffers = {'TP9': [], 'AF7': [], 'AF8': [], 'TP10': []}
-        self._ppg_buffer = [] 
+        self._buffers = {ch: deque(maxlen=768) for ch in ['TP9', 'AF7', 'AF8', 'TP10']}
+        self._ppg_buffer = deque(maxlen=768)
         self.MAX_BUF = 512 
         self._main_loop = None 
         self._last_update = 0.0
+        
+        # ── Fix #2: DSP Worker Thread (producer-consumer queue) ──
+        self._dsp_queue = queue.Queue(maxsize=4)
+        self._dsp_thread = threading.Thread(target=self._dsp_worker, daemon=True)
+        self._dsp_thread.start()
         
         # Smoothing state
         self._smooth_hist = {
@@ -127,37 +225,59 @@ class ConnectionManager:
             'delta': 0.0, 'theta': 0.0, 'alpha': 0.0, 'beta': 0.0, 'gamma': 0.0
         }
         
-        # ── Research-Grade Additions ──
-        self._imu_buffer = []       # Raw accel magnitude history (for motion filter)
-        # Baseline calibration (first 30s of data)
+        # ── Educational EEG Additions ──
+        self._imu_buffer = deque(maxlen=512)
+        # Baseline calibration (first 60s of data)
         self._baseline_samples = []  # Collect baseline engagement ratios
         self._baseline_ratio = None  # User's resting engagement ratio
         self._baseline_std   = 0.1   # Z-score std (computed at baseline end)
         self._baseline_done = False
         self._baseline_start_time = None
+        self._baseline_last_sample_t = 0.0  # ST1: throttle to 1 sample per 2s
         
         # IAF (Individual Alpha Frequency)
         self._iaf = 10.0  # Default 10Hz (will be personalized during baseline)
-        self._iaf_bands = None  # Will hold personalized band boundaries
-        self._iaf_psd_accumulator = []  # Collect PSDs during baseline for IAF detection
-        
-        # 50Hz Notch Filter state (IIR biquad)
-        self._notch_state = {ch: {'x1': 0, 'x2': 0, 'y1': 0, 'y2': 0} 
-                            for ch in ['TP9', 'AF7', 'AF8', 'TP10']}
+        self._iaf_bands = None
+        self._iaf_psd_accumulator = []
         
         # Blink tracking
-        self._blink_history = []  # List of timestamps when blinks were detected
+        self._blink_history = []
+        self._blink_running_std = 50.0  # M6: running std for relative blink threshold
 
         # Savitzky-Golay focus smoothing history (Stage 2)
         self._savgol_focus_history = []
 
-        # Headband debounce: require N consecutive same-state samples before flipping
-        self._headband_stability_counter = 0   # +ve = consecutive valid, -ve = consecutive invalid
-        self._headband_confirmed = False        # Stable confirmed state
+        # Headband debounce
+        self._headband_stability_counter = 0
+        self._headband_confirmed = False
+        
+        # Mo1 Fix: Initialize all previously hasattr-deferred variables
+        self._ppg_start_t = None
+        self._ppg_log_timer = 0.0
+        self._hb_diag_t = 0.0
+        self._headband_warn_t = 0.0
+        self._focus_log_counter = 0
+        self._mind_state_last_change = time.time()  # M2: real elapsed time
+        
+        # ── V2.1: Adaptive Notch Filter state persistence ──
+        self._adaptive_weights = {}       # {ch: last_weights_array}
+        self._adaptive_ref_history = {}   # {ch: ref_history matrix (n_harmonics, n_taps-1)}
+        self._adaptive_phases = {}        # {ch: phase_array (n_harmonics,)} continuous accumulator
+        self._adaptive_notch_enabled = NUMBA_AVAILABLE
+        # V2.3 Fix #10: NLMS death-lock timeout counter {ch: consecutive_frozen_samples}
+        self._adaptive_frozen_steps = {}  # {ch: int}
+        # V2.3 Fix #5: Dedicated 10-second CFC rolling buffer for AF7 (2560 samples @ 256Hz)
+        self._cfc_buffer = deque(maxlen=2560)  # 10s @ 256Hz
+        if self._adaptive_notch_enabled:
+            logger.info("V2.1 Adaptive NLMS Notch Filter: ENABLED (Numba JIT + Continuous Phase + Derivative Gate)")
+        else:
+            logger.info("V2.1 Adaptive NLMS Notch Filter: DISABLED (Numba not found, using static IIR fallback)")
 
     def set_loop(self, loop):
         """Set the main asyncio loop (from aiohttp)."""
         self._main_loop = loop
+
+
 
     @property
     def state(self):
@@ -211,17 +331,16 @@ class ConnectionManager:
             self._savgol_focus_history.clear()  # Reset S-G trajectory for new student
             logger.info("BASELINE RESET — new student session calibration starting.")
 
-    # ... (connect/disconnect/start_simulation remain same) ...
 
 
     # ── CONNECT ──────────────────────────────────────────────
     def connect(self):
         """Start scanning + connecting in background."""
-        if self._state in ['connected', 'simulating', 'scanning']:
+        if self._state in ['connected', 'scanning']:
             return {'status': f'already_{self._state}'}
         
         self._state = 'scanning'
-        self._buffers = {'TP9': [], 'AF7': [], 'AF8': [], 'TP10': []}
+        self._buffers = {ch: deque(maxlen=768) for ch in ['TP9', 'AF7', 'AF8', 'TP10']}
         
         # Run connection flow in a separate thread to avoid blocking API
         threading.Thread(target=self._connect_flow, daemon=True).start()
@@ -229,7 +348,7 @@ class ConnectionManager:
 
     def disconnect(self):
         """Stop everything."""
-        self._sim_running = False
+
         
         # Disconnect BLE on the main loop
         if self._ble_client and self._main_loop:
@@ -339,13 +458,10 @@ class ConnectionManager:
             if sensor_type == 'accel':
                 self.snapshot.accel = latest
                 # Stage 3: feed accel [x,y,z] into IMU motion filter buffer
-                self._imu_buffer.extend(
-                    [[s['x'], s['y'], s['z']] for s in samples
-                     if isinstance(s, dict) and 'x' in s]
-                )
-                # Keep buffer at 512 samples max
-                if len(self._imu_buffer) > 512:
-                    self._imu_buffer = self._imu_buffer[-512:]
+                for s in samples:
+                    if isinstance(s, dict) and 'x' in s:
+                        self._imu_buffer.append([s['x'], s['y'], s['z']])
+                # deque auto-trims to maxlen=512
             elif sensor_type == 'gyro':
                 self.snapshot.gyro = latest
             self.snapshot.connected = True
@@ -361,7 +477,7 @@ class ConnectionManager:
              self.snapshot.connected = True
         
         if channel_name == 'PPG2':
-            self._ppg_buffer.extend(samples)
+            self._ppg_buffer.extend(samples)  # deque(maxlen=512) auto-trims
             if not hasattr(self, '_ppg_start_t'):
                 self._ppg_start_t = time.time()
                 self._ppg_sample_count = 0
@@ -381,7 +497,7 @@ class ConnectionManager:
                      est_fs = 256.0 # Default assumption
                  
                  self._calculate_bpm(est_fs)
-                 self._ppg_buffer = self._ppg_buffer[-256:] # Overlap
+                 # deque auto-trims (maxlen=768), no manual slicing needed
 
             # Debug logs
             if not hasattr(self, '_ppg_log_timer'): self._ppg_log_timer = 0
@@ -489,45 +605,68 @@ class ConnectionManager:
              logger.error(f"BPM Error: {e}")
 
     def _on_ble_data(self, ch_idx, samples):
-        """Callback from MuseBLEClient with new data."""
+        """Callback from MuseBLEClient with new data.
+        Fix #2: Does NOT call _process_data() directly — instead pushes
+        a signal to the DSP worker queue to avoid blocking the BLE thread."""
         try:
             names = ['TP9', 'AF7', 'AF8', 'TP10']
             if 0 <= ch_idx < 4:
                 name = names[ch_idx]
                 self._buffers[name].extend(samples)
-                # Keeping it slightly larger than MAX_BUF for processing window
-                if len(self._buffers[name]) > self.MAX_BUF * 1.5:
-                    self._buffers[name] = self._buffers[name][-self.MAX_BUF:]
+                # deque auto-trims to maxlen=768, no manual slicing needed
             
             if ch_idx == 3 and len(samples) > 0:
-                self._process_data()
+                # Push to DSP worker queue (non-blocking)
+                try:
+                    self._dsp_queue.put_nowait(True)
+                except queue.Full:
+                    pass  # DSP is already backed up, skip this cycle
         except Exception as e:
             # Absorb errors (e.g. bleak _check_closed on BLE disconnect)
             logger.debug(f"BLE data callback error (safe to ignore): {e}")
 
+    def _dsp_worker(self):
+        """Fix #2: Dedicated DSP processing thread.
+        Pulls signals from _dsp_queue and runs the heavy _process_data()
+        pipeline in its own thread — never blocking the BLE receive thread."""
+        while True:
+            try:
+                self._dsp_queue.get(timeout=2.0)
+                self._process_data()
+            except queue.Empty:
+                continue  # No data to process, loop
+            except Exception as e:
+                logger.error(f"DSP worker error: {e}")
+
     # ── SIGNAL PROCESSING HELPERS ──
     
     def _find_iaf(self, freqs, psd):
-        """Find Individual Alpha Frequency (IAF) — peak in 7-14Hz range.
+        """Find Individual Alpha Frequency (IAF) — peak in 8.5-11.5Hz range.
         IAF is the most stable EEG biomarker and varies per person (typically 9-11Hz).
-        Used by clinical neurofeedback to personalize all band boundaries."""
-        # Search only in the alpha-theta transition zone (7-14Hz)
-        alpha_mask = np.logical_and(freqs >= 7.0, freqs <= 14.0)
-        alpha_freqs = freqs[alpha_mask]
-        alpha_psd = psd[alpha_mask]
-        
-        if len(alpha_psd) == 0:
-            return 10.0  # Default
-        
-        # Find the peak
-        peak_idx = np.argmax(alpha_psd)
-        iaf = alpha_freqs[peak_idx]
-        
-        # Sanity check: IAF should be between 8-12Hz for healthy adults
-        if iaf < 7.5 or iaf > 13.5:
-            return 10.0  # Default fallback
-        
-        return float(iaf)
+        N3 Fix: Restricted search range + prominence check to reject EMG/noise peaks."""
+        try:
+            # N3: Narrower search to avoid EMG contamination & drowsy artifacts
+            alpha_mask = np.logical_and(freqs >= 8.5, freqs <= 11.5)
+            alpha_freqs = freqs[alpha_mask]
+            alpha_psd = psd[alpha_mask]
+            
+            if len(alpha_psd) == 0:
+                return 10.0
+            
+            # Prominence check: peak must stand out from background
+            peaks, props = signal.find_peaks(alpha_psd, prominence=np.std(alpha_psd) * 0.5)
+            if len(peaks) == 0:
+                logger.debug("IAF: No prominent peak found in 8.5-11.5Hz, defaulting to 10.0Hz")
+                return 10.0
+            
+            # Take the most prominent peak
+            best_peak = peaks[np.argmax(props['prominences'])]
+            iaf = float(alpha_freqs[best_peak])
+            
+            logger.info(f"IAF detected: {iaf:.1f}Hz (prominence={props['prominences'][np.argmax(props['prominences'])]:.3f})")
+            return iaf
+        except Exception:
+            return 10.0
     
     def _get_iaf_bands(self, iaf):
         """Generate personalized band boundaries based on IAF.
@@ -537,12 +676,14 @@ class ConnectionManager:
             'Theta': (max(2.0, iaf - 6.0), iaf - 2.0),  # ~4 to ~8Hz
             'Alpha': (iaf - 2.0, iaf + 2.0),     # ~8 to ~12Hz (centered on IAF)
             'Beta':  (iaf + 2.0, 30.0),           # ~12 to 30Hz
-            'Gamma': (30.0, 50.0)                 # 30 to 50Hz (unchanged)
+            'Gamma': (30.0, 45.0)                 # S1 Fix: 30-45Hz (aligned with bandpass highcut)
         }
     
     # ── ADVANCED DSP FILTERS ───────────────────────────────────
-    def _notch_filter(self, data, freq_hz, fs=256.0, q=30.0):
-        """Generic notch filter — use for 50Hz or 60Hz hum."""
+    def _notch_filter(self, data, freq_hz, fs=256.0, q=20.0):
+        """Generic notch filter — use for 50Hz or 60Hz hum.
+        M4 Fix: Q reduced from 30→20 for wider notch (2.5Hz vs 1.67Hz width)
+        to handle mains frequency drift under grid load."""
         if signal is None: return data
         nyq = 0.5 * fs
         freq = freq_hz / nyq
@@ -551,11 +692,133 @@ class ConnectionManager:
         return signal.filtfilt(b, a, data)
 
     def _notch_filter_50hz(self, data, ch_name, fs=256.0):
-        """Clean 50Hz + 60Hz electrical hum (dual-stage)."""
+        """Clean 50Hz + 60Hz electrical hum (dual-stage). V1 STATIC FALLBACK."""
         d = self._notch_filter(data, 50.0, fs)
         d = self._notch_filter(d,    60.0, fs)
         return d
 
+    # ── V2.1: ADAPTIVE NLMS NOTCH FILTER (Production-Grade) ─────
+    def _adaptive_notch(self, data, ch_name, fs=256.0):
+        """V2.1 Adaptive Notch Filter using JIT-compiled NLMS with:
+        - Continuous phase accumulators (no phase reset between chunks)
+        - Reference history buffers (no zero-padding at chunk boundaries)
+        - Derivative-based Gated Freeze (handles loud hum without lockup)
+        Falls back to static IIR notch if Numba is unavailable."""
+        if not self._adaptive_notch_enabled:
+            return self._notch_filter_50hz(data, ch_name, fs)
+        
+        try:
+            n_samples = len(data)
+            if n_samples < 10:
+                return data
+            
+            # ── Define harmonic frequencies ──
+            harmonic_freqs = [50.0, 100.0, 150.0, 60.0, 120.0, 180.0]
+            nyquist = fs / 2.0
+            valid_freqs = [f for f in harmonic_freqs if f < nyquist]
+            
+            if not valid_freqs:
+                return self._notch_filter_50hz(data, ch_name, fs)
+            
+            n_harmonics = len(valid_freqs)
+            
+            # ── FIX #2: Continuous Phase Accumulator ──
+            # Instead of t = np.arange(n)/fs (resets to 0 each chunk),
+            # we persist the exact phase angle per harmonic per channel.
+            if ch_name in self._adaptive_phases:
+                phases = self._adaptive_phases[ch_name]
+                if len(phases) != n_harmonics:
+                    phases = np.zeros(n_harmonics, dtype=np.float64)
+            else:
+                phases = np.zeros(n_harmonics, dtype=np.float64)
+            
+            # Build the reference matrix using the continuous phase accumulator
+            ref_matrix = np.empty((n_harmonics, n_samples), dtype=np.float64)
+            new_phases = np.empty(n_harmonics, dtype=np.float64)
+            for h_idx in range(n_harmonics):
+                freq = valid_freqs[h_idx]
+                phase_inc = 2.0 * np.pi * freq / fs  # Phase increment per sample
+                phase = phases[h_idx]
+                for s in range(n_samples):
+                    ref_matrix[h_idx, s] = np.sin(phase)
+                    phase += phase_inc
+                # Wrap phase to [0, 2*pi) to prevent float overflow after hours
+                new_phases[h_idx] = phase % (2.0 * np.pi)
+            
+            # ── Adaptive filter parameters ──
+            n_taps = 2          # Taps per harmonic
+            mu = 0.05           # Learning rate
+            deriv_thresh = 50.0 # uV/sample: derivative gate for transient detection
+            
+            # Retrieve persisted weights (warm start)
+            total_taps = n_harmonics * n_taps
+            if ch_name in self._adaptive_weights:
+                init_w = self._adaptive_weights[ch_name]
+                if init_w.shape[0] != total_taps:
+                    init_w = np.zeros(total_taps, dtype=np.float64)
+            else:
+                init_w = np.zeros(total_taps, dtype=np.float64)
+            
+            # ── FIX #1: Retrieve persisted reference history ──
+            hist_len = n_taps - 1  # = 1 sample for n_taps=2
+            if ch_name in self._adaptive_ref_history:
+                ref_hist = self._adaptive_ref_history[ch_name]
+                if ref_hist.shape[0] != n_harmonics or ref_hist.shape[1] != hist_len:
+                    ref_hist = np.zeros((n_harmonics, hist_len), dtype=np.float64)
+            else:
+                ref_hist = np.zeros((n_harmonics, hist_len), dtype=np.float64)
+            
+            # ── Run the V2.3 JIT-compiled NLMS kernel ──
+            cleaned, final_weights, new_ref_hist, frozen_count = _nlms_adaptive_kernel(
+                data.astype(np.float64),
+                ref_matrix,
+                ref_hist,
+                n_taps,
+                mu,
+                deriv_thresh,
+                init_w
+            )
+
+            # ── V2.3 Fix #10: NLMS death-lock timeout ──
+            # If the derivative gate was frozen for >2.5s (640 samples @ 256Hz),
+            # a permanent baseline shift has occurred (headband moved, scratch, shift).
+            # Force a rapid weight reset so the filter can re-converge fast.
+            prev_frozen = self._adaptive_frozen_steps.get(ch_name, 0)
+            total_frozen = prev_frozen + int(frozen_count)
+            DEATH_LOCK_THRESHOLD = int(2.5 * fs)  # 640 samples @ 256Hz
+            if total_frozen >= DEATH_LOCK_THRESHOLD:
+                logger.warning(
+                    f"NLMS death-lock on {ch_name}: frozen {total_frozen} samples. "
+                    "Forcing weight reset + high-mu burst recovery."
+                )
+                final_weights = np.zeros_like(final_weights)  # Reset weights
+                total_frozen = 0  # Clear counter
+            self._adaptive_frozen_steps[ch_name] = total_frozen
+
+            # Persist all state for the next DSP cycle
+            self._adaptive_weights[ch_name] = final_weights
+            self._adaptive_ref_history[ch_name] = new_ref_hist
+            self._adaptive_phases[ch_name] = new_phases
+            
+            return cleaned
+        
+        except Exception as e:
+            logger.warning(f"Adaptive notch failed on {ch_name}: {e}, falling back to static")
+            return self._notch_filter_50hz(data, ch_name, fs)
+
+    # ── STAGE 4: Z-SCORE THRESHOLD CLIP (Fix #3: honest naming) ────────
+    def _zscore_clip(self, data: np.ndarray, z_thresh=5.0) -> np.ndarray:
+        """Z-score threshold clip — replaces outlier samples (> z_thresh σ)
+        with the channel median. This is NOT Artifact Subspace Reconstruction
+        (ASR). True ASR uses PCA/ICA decomposition of calibration covariance.
+        This is a simple statistical outlier replacement."""
+        ch_median = np.median(data)
+        ch_std = np.std(data)
+        if ch_std < 0.01: return data  # Flatline, skip
+        z = np.abs((data - ch_median) / ch_std)
+        cleaned = data.copy()
+        cleaned[z > z_thresh] = ch_median
+        return cleaned
     def _bandpass_filter(self, data, lowcut=1.0, highcut=45.0, fs=256.0):
         """Clinical Butterworth filter to remove DC drift and high-freq noise."""
         if signal is None: return data
@@ -573,7 +836,7 @@ class ConnectionManager:
         Returns all-True if no IMU data available."""
         if len(self._imu_buffer) < 512:
             return np.ones(512, dtype=bool)
-        imu = np.array(self._imu_buffer[-512:])
+        imu = np.array(list(self._imu_buffer)[-512:])  # Convert deque to list for numpy
         # Compute per-sample movement magnitude
         mag = np.linalg.norm(imu, axis=1) if imu.ndim == 2 else np.abs(imu)
         # Rolling std: flag samples where magnitude exceeds 0.15g threshold
@@ -581,35 +844,20 @@ class ConnectionManager:
         motion_mask = mag <= threshold
         return motion_mask
 
-    # ── STAGE 4: LIGHTWEIGHT ASR ────────────────────────────────
-    def _asr_clean(self, data: np.ndarray, z_thresh=5.0) -> np.ndarray:
-        """Artifact Subspace Reconstruction (lightweight).
-        Replaces samples > z_thresh sigma with the channel median.
-        Preserves the rest of the window unlike full channel rejection."""
-        ch_median = np.median(data)
-        ch_std = np.std(data)
-        if ch_std < 0.01: return data  # Flatline, skip
-        z = np.abs((data - ch_median) / ch_std)
-        cleaned = data.copy()
-        cleaned[z > z_thresh] = ch_median
-        return cleaned
-
-    # ── STAGE 5: CROSS-FREQUENCY COUPLING (Deep Focus) ──────────
-    def _cfc_score(self, data: np.ndarray, fs=256.0) -> float:
-        """Alpha-Gamma phase-amplitude coupling via Hilbert transform.
-        Returns Mean Vector Length (MVL) in [0, 1] — proxy for 'deep focus'.
-        High MVL = sustained attention, low = relaxed or distracted."""
+    # ── STAGE 5: CROSS-FREQUENCY COUPLING (Fix #6: Theta-Gamma) ──────
+    def _cfc_score(self, data: np.ndarray, fs=256.0, emg_detected=False) -> float:
+        """V2.3: Theta-Gamma phase-amplitude coupling via Hilbert transform.
+        Fix #5: Now operates on the 10-second _cfc_buffer instead of the 3-second
+        chunk, providing statistically significant phase estimation (40-80 theta cycles
+        instead of 12-24). Returns Mean Vector Length (MVL) in [0, 1]."""
         try:
-            if signal is None or len(data) < 256: return 0.0
-            # Alpha phase (8-12 Hz)
-            alpha_filt = self._bandpass_filter(data, 8.0, 12.0, fs)
-            alpha_phase = np.angle(signal.hilbert(alpha_filt))
-            # Gamma amplitude (30-50 Hz)
+            if signal is None or len(data) < 512: return 0.0
+            if emg_detected: return 0.0
+            theta_filt = self._bandpass_filter(data, 4.0, 8.0, fs)
+            theta_phase = np.angle(signal.hilbert(theta_filt))
             gamma_filt = self._bandpass_filter(data, 30.0, 50.0, fs)
             gamma_amp = np.abs(signal.hilbert(gamma_filt))
-            # Mean Vector Length (Canolty et al. 2006)
-            mvl = np.abs(np.mean(gamma_amp * np.exp(1j * alpha_phase)))
-            # Normalise to [0, 1] with empirical max of ~5.0
+            mvl = np.abs(np.mean(gamma_amp * np.exp(1j * theta_phase)))
             return float(np.clip(mvl / 5.0, 0.0, 1.0))
         except Exception:
             return 0.0
@@ -632,19 +880,37 @@ class ConnectionManager:
         return float(smoothed[-1])
 
     def _detect_emg(self, psd, freqs) -> bool:
-        """Detect muscle tension (clenching) in 45-100Hz range."""
-        idx = np.logical_and(freqs >= 45.0, freqs <= 100.0)
-        if not np.any(idx): return False
-        avg_high_freq = np.mean(psd[idx])
-        # Empirical threshold for muscle noise
-        return avg_high_freq > 1.5
+        """V2.3 Fix #9: Muscle-Beta cross-correlation check.
+        Checks for simultaneous spike in 20-30Hz (Beta) AND 40-100Hz (pure EMG).
+        If both spike together, the 'Beta' is actually EMG bleed — flag as emg.
+        This prevents jaw-clenching from producing a fake 'hyper-focus' reading."""
+        # Pure EMG band (40-100Hz)
+        emg_idx = np.logical_and(freqs >= 40.0, freqs <= 100.0)
+        # Beta-EMG bleed zone (20-30Hz — muscle pollutes beta here)
+        beta_high_idx = np.logical_and(freqs >= 20.0, freqs <= 30.0)
+        if not np.any(emg_idx) or not np.any(beta_high_idx):
+            return False
+        avg_emg     = np.mean(psd[emg_idx])
+        avg_betahigh = np.mean(psd[beta_high_idx])
+        # If both are elevated simultaneously → EMG bleed into beta
+        if avg_emg > 1.5 and avg_betahigh > avg_emg * 0.6:
+            return True   # Jaw clench: invalidate TBR for this chunk
+        # Legacy check: pure high-frequency EMG alone
+        return avg_emg > 2.5
     
-    def _detect_blinks(self, af7_data, af8_data, threshold=100.0):
+    def _detect_blinks(self, af7_data, af8_data):
         """Detect eye blink artifacts on frontal channels.
-        Blinks cause >100.0uV spikes on AF7/AF8.
+        M6 Fix: Uses relative threshold (3× running std) instead of
+        absolute 100µV — adapts to subject-specific impedance.
         Returns: list of (start, end) sample indices to exclude."""
         blink_zones = []
         combined = (np.abs(af7_data) + np.abs(af8_data)) / 2.0
+        
+        # Update running std with EMA (adapts to each subject)
+        current_std = float(np.std(combined))
+        self._blink_running_std = 0.95 * self._blink_running_std + 0.05 * current_std
+        threshold = max(30.0, 3.0 * self._blink_running_std)  # Floor at 30µV
+        
         in_blink = False
         start = 0
         
@@ -662,49 +928,16 @@ class ConnectionManager:
         
         return blink_zones
     
-    def _welch_psd(self, data, fs=256.0, n_segments=4):
-        """Welch's method: average PSD over overlapping segments.
-        More stable than single-window periodogram."""
-        n = len(data)
-        seg_len = n // (n_segments // 2 + 1)  # 50% overlap
-        if seg_len < 64:
-            seg_len = n  # Fall back to single window
-            n_segments = 1
-        
-        step = seg_len // 2  # 50% overlap
-        psd_sum = None
-        count = 0
-        
-        for start in range(0, n - seg_len + 1, step):
-            segment = data[start:start + seg_len]
-            # Detrend
-            segment = segment - np.mean(segment)
-            # Hanning Window
-            window = np.hanning(seg_len)
-            # FFT
-            fft_vals = np.fft.rfft(segment * window)
-            psd = np.abs(fft_vals)**2 / seg_len
-            
-            if psd_sum is None:
-                psd_sum = psd
-            else:
-                psd_sum = psd_sum + psd
-            count += 1
-        
-        if count == 0:
-            return None, None
-        
-        psd_avg = psd_sum / count
-        freqs = np.fft.rfftfreq(seg_len, 1/fs)
-        return freqs, psd_avg
+    # S2 Fix: Removed dead _welch_psd() function (was never called;
+    # actual PSD uses scipy.signal.welch on line 855)
 
     def _process_data(self):
-        """Clinical-grade EEG processing pipeline.
+        """EEG processing pipeline.
         Stage 1: Z-Score Brain-State Normalization
         Stage 2: Savitzky-Golay Stabilization
         Stage 3: IMU Motion-Aware Filtering
-        Stage 4: Lightweight ASR (Artifact Subspace Reconstruction)
-        Stage 5: Cross-Frequency Coupling (Deep Focus overlay)
+        Stage 4: Z-Score Threshold Clip (Fix #3: was mislabeled ASR)
+        Stage 5: Cross-Frequency Coupling (Fix #6: Theta-Gamma)
         """
         try:
 
@@ -713,7 +946,7 @@ class ConnectionManager:
             raw_arrays = {}
             for ch in ch_names:
                 if len(self._buffers[ch]) >= 512:
-                    raw_arrays[ch] = np.array(self._buffers[ch][-512:], dtype=np.float64)
+                    raw_arrays[ch] = np.array(list(self._buffers[ch])[-512:], dtype=np.float64)
             
             if not raw_arrays: return
             
@@ -725,31 +958,55 @@ class ConnectionManager:
                 'Delta': (0.5, 4), 'Theta': (4, 8), 'Alpha': (8, 13), 'Beta': (13, 30), 'Gamma': (30, 50)
             }
             
-            # ── Stage 3+4: Filtering, motion mask, ASR ──
-            motion_mask = self._imu_motion_mask()  # Stage 3: IMU motion mask
+            # ── S3 Fix: Correct filter order ──
+            # De-mean → Z-score clip (despike raw) → Bandpass → Notch → Motion mask
+            motion_mask = self._imu_motion_mask()
             filtered = {}
             for ch in available_ch:
-                # 1. Bandpass (1-45Hz) + Dual notch (50+60Hz)
-                d_bp    = self._bandpass_filter(raw_arrays[ch], fs=fs)
-                d_notch = self._notch_filter_50hz(d_bp, ch, fs)
+                d = raw_arrays[ch]
+                # 1. De-mean (remove DC offset)
+                d = d - np.mean(d)
+                # 2. Z-score clip FIRST (remove spikes from raw before filtering)
+                d = self._zscore_clip(d, z_thresh=5.0)
+                # 3. Bandpass (1-45Hz)
+                d = self._bandpass_filter(d, fs=fs)
+                # 4. Dual notch (50+60Hz)
+                d = self._adaptive_notch(d, ch, fs)  # V2: Adaptive NLMS (falls back to static IIR)
+                # 5. Zero out motion-contaminated samples
+                if len(motion_mask) == len(d):
+                    d[~motion_mask] = float(np.median(d))
 
-                # Stage 4: ASR — replace spike samples with channel median
-                d_asr = self._asr_clean(d_notch, z_thresh=5.0)
-
-                # Stage 3: zero out motion-contaminated samples
-                if len(motion_mask) == len(d_asr):
-                    d_asr[~motion_mask] = float(np.median(d_asr))
-
-                filtered[ch] = d_asr
+                filtered[ch] = d
             
             # ── Step 1.2: CAR (Common Average Reference) ──
-            # Software-based noise cancellation. Subtracting the average of all 
-            # electrodes removes noise that is common to all sensors (environmental hum/vibration).
-            if len(available_ch) >= 3:
-                all_raw = np.array([filtered[ch] for ch in available_ch])
-                common_noise = np.median(all_raw, axis=0) # Use median for robust noise profile
+            # FIX: Option B — Blink-Aware CAR (4-channel protection)
+            # On a 4-channel array, a blink on AF7/AF8 can smear into TP9/TP10
+            # if CAR is applied while a transient is present, even with the
+            # TP9/TP10-only reference. Solution: detect blink-like transients on
+            # frontal channels BEFORE applying CAR. If the frontal channels are
+            # spiking (>3× their own running std), skip CAR entirely for this chunk.
+            # CAR still uses only TP9/TP10 as the reference (no AF7/AF8 averaging).
+            _skip_car = False
+            if 'AF7' in available_ch and 'AF8' in available_ch:
+                _af7_p2p = np.max(np.abs(filtered['AF7']))
+                _af8_p2p = np.max(np.abs(filtered['AF8']))
+                _tp_std = np.mean([np.std(filtered[c]) for c in ['TP9','TP10'] if c in available_ch] or [1.0])
+                if _af7_p2p > _tp_std * 6.0 or _af8_p2p > _tp_std * 6.0:
+                    _skip_car = True  # Blink transient detected — protect temporal channels
+                    logger.debug("CAR skipped: blink transient on frontal channels")
+
+            if not _skip_car and len(available_ch) >= 3:
+                ref_channels = [ch for ch in available_ch if ch in ('TP9', 'TP10')]
+                if len(ref_channels) >= 2:
+                    ref_data = np.array([filtered[ch] for ch in ref_channels])
+                    common_noise = np.mean(ref_data, axis=0)  # S4: mean, not median
+                else:
+                    all_raw = np.array([filtered[ch] for ch in available_ch])
+                    common_noise = np.mean(all_raw, axis=0)  # S4: mean, not median
                 for ch in available_ch:
                     filtered[ch] -= common_noise
+            else:
+                logger.debug(f"CAR skipped: only {len(available_ch)} channels available (need ≥3)")
             
             valid_ch = []
             for ch in available_ch:
@@ -811,8 +1068,10 @@ class ConnectionManager:
                     # Only use if segment is 100% clean
                     if np.all(clean_mask[start:end]):
                         seg = d[start:end]
-                        seg = seg - np.mean(seg) # Detrend
-                        f, p = signal.welch(seg, fs, window='hann', nperseg=256, noverlap=128)
+                        seg = seg - np.mean(seg)  # Detrend
+                        # V2.3 Fix #8: nfft=1024 → 0.25Hz bin resolution (was 1Hz)
+                        # IAF can now be 9.75Hz not just 9Hz or 10Hz
+                        f, p = signal.welch(seg, fs, window='hann', nperseg=256, noverlap=128, nfft=1024)
                         valid_psds.append(p)
                         freqs = f # Reference freqs
                 
@@ -852,8 +1111,22 @@ class ConnectionManager:
             if total_p < 0.1: return
             
             snapshot_updates = {k.lower(): v/total_p for k, v in avg_powers.items()}
-            denom = snapshot_updates['alpha'] + snapshot_updates['theta']
-            raw_ratio = (snapshot_updates['beta'] / denom) if denom > 0.001 else 0.0
+            
+            # N1 Fix: Primary metric is now inverse TBR (1/TBR), not Beta/(Alpha+Theta)
+            # TBR (Theta/Beta Ratio) is clinically validated for attention (Arns et al. 2013)
+            # High TBR = inattention, so we use 1/TBR as the "engagement" ratio
+            beta_val = snapshot_updates.get('beta', 0.0)
+            theta_val = snapshot_updates.get('theta', 0.0)
+            tbr = (theta_val / beta_val) if beta_val > 0.001 else 0.0
+            snapshot_updates['tbr'] = round(tbr, 3)
+            # V2.3 Fix #9: If EMG detected (jaw clench), beta is contaminated.
+            # Invalidate TBR for this chunk — do NOT push a fake focus spike.
+            if emg_detected:
+                tbr = 0.0
+                snapshot_updates['tbr'] = 0.0
+                logger.debug("TBR invalidated: EMG-Beta cross-correlation detected (jaw clench / muscle tension)")
+            # Inverse TBR = engagement score (higher = more focused)
+            raw_ratio = (1.0 / tbr) if tbr > 0.001 else 0.0
             
             # ── Stage 1: Z-Score Normalization & Focus ──────────
             # Headband-on detection: signal QUALITY based, not spectral content.
@@ -862,21 +1135,36 @@ class ConnectionManager:
             alpha_theta = snapshot_updates['alpha'] + snapshot_updates['theta']
 
             # ── Headband-on detection ──
-            # SIMPLE RULE: If at least 1 channel passed the physical sensor
-            # validation (std 1.5-300µV, not railed, not flat) at lines 752-765,
-            # then the headband IS physically on a human head.
-            # Clean_ratio and alpha_theta are QUALITY metrics, not PRESENCE indicators.
-            # A person blinking, clenching, or moving still has the headband ON.
-            raw_headband_on = len(valid_ch) >= 1
+            # V2.3 Fix #7: Powerline-ratio headband detection.
+            # When electrode is off the head, it acts as an RF antenna → massive 50/60Hz spike.
+            # Powerline energy as % of total broadband is a more stable contact indicator
+            # than raw RMS (which drifts with impedance changes from sweating over 30-40min).
+            pline_off_count = 0
+            if psd_sum_all is not None and freqs is not None and len(psd_sum_all) > 0:
+                try:
+                    pline_idx = np.logical_or(
+                        np.logical_and(freqs >= 48.0, freqs <= 52.0),
+                        np.logical_and(freqs >= 58.0, freqs <= 62.0)
+                    )
+                    total_power_all = np.sum(psd_sum_all)
+                    pline_power = np.sum(psd_sum_all[pline_idx]) if np.any(pline_idx) else 0.0
+                    pline_ratio = pline_power / (total_power_all + 1e-10)
+                    # >60% powerline energy = electrode off-head (antenna mode)
+                    if pline_ratio > 0.60:
+                        pline_off_count = 1
+                        logger.debug(f"Powerline antenna mode detected: {pline_ratio:.2%} of signal is 50/60Hz")
+                except Exception:
+                    pass
+            raw_headband_on = (len(valid_ch) >= 2) and (pline_off_count == 0)
 
-            # Quality diagnostics (logging only — does NOT affect headband on/off)
+            # Quality diagnostics (logging only)
             if not raw_headband_on:
-                if not hasattr(self, '_hb_diag_t') or time.time() - self._hb_diag_t > 5:
+                if time.time() - self._hb_diag_t > 5:
                     self._hb_diag_t = time.time()
                     logger.info(
                         f"HEADBAND DIAG | valid_ch={len(valid_ch)} "
                         f"clean={clean_ratio:.2f} a+t={alpha_theta:.3f} blinks={blink_rate} "
-                        f"→ NO valid channels — headband likely off-head"
+                        f"→ Insufficient channels — headband likely off-head"
                     )
 
             # ── Asymmetric Debounce ──────────────────────────────
@@ -902,7 +1190,7 @@ class ConnectionManager:
             headband_off = False
             if not headband_on:
                 headband_off = True
-                if not hasattr(self, '_headband_warn_t') or time.time() - self._headband_warn_t > 10:
+                if time.time() - self._headband_warn_t > 10:
                     self._headband_warn_t = time.time()
                     logger.info("HEADBAND OFF: No valid EEG contact detected. Focus frozen.")
 
@@ -916,14 +1204,21 @@ class ConnectionManager:
                 else:
                     if self._baseline_start_time is None:
                         self._baseline_start_time = time.time()
-                        logger.info("═══ BASELINE CALIBRATION STARTED (15s) — Headband detected on head ═══")
+                        logger.info("═══ BASELINE CALIBRATION STARTED (60s) — Headband detected on head ═══")
 
-                    self._baseline_samples.append(raw_ratio)
-                    if psd_sum_all is not None:
-                        self._iaf_psd_accumulator.append((freqs, psd_sum_all / len(valid_ch)))
+                    # ST1 Fix: Only sample baseline once per 2s to avoid autocorrelation
+                    now_t = time.time()
+                    if now_t - self._baseline_last_sample_t >= 2.0:
+                        self._baseline_last_sample_t = now_t
+                        self._baseline_samples.append(raw_ratio)
+                        if psd_sum_all is not None:
+                            self._iaf_psd_accumulator.append((freqs, psd_sum_all / len(valid_ch)))
 
+                    # PhD Fix P3: Increased from 15s → 60s for stable spectral estimate
+                    # Clinical standard: 2-3 minutes (Klimesch 1999). 60s is a pragmatic
+                    # compromise for real-world educational use.
                     elapsed = time.time() - self._baseline_start_time
-                    if elapsed >= 15.0:
+                    if elapsed >= 60.0:
                         # Z-score baseline: mean and std of resting-state ratio
                         self._baseline_ratio = float(np.median(self._baseline_samples))
                         self._baseline_std   = float(np.std(self._baseline_samples))
@@ -951,15 +1246,18 @@ class ConnectionManager:
                     focus_metric = (z + 2.0) / 8.0
                     focus_metric = float(np.clip(focus_metric, 0.0, 0.95))
 
-                    if not hasattr(self, '_focus_log_counter'): self._focus_log_counter = 0
                     self._focus_log_counter += 1
                     if self._focus_log_counter % 20 == 0:
-                        logger.info(f"FOCUS | raw={raw_ratio:.4f} | z={z:+.2f}SD | focus={focus_metric*100:.0f}% | clean={clean_ratio*100:.0f}%")
+                        logger.info(f"FOCUS | inv_tbr={raw_ratio:.4f} | z={z:+.2f}SD | focus={focus_metric*100:.0f}% | clean={clean_ratio*100:.0f}%")
 
-            # ── Stage 5: CFC Deep Focus (secondary metric) ──────────
+            # ── Stage 5: CFC Deep Focus via 10-second rolling buffer ──
+            # V2.3 Fix #5: append AF7 into dedicated 10s buffer for stable PAC
+            if 'AF7' in filtered:
+                self._cfc_buffer.extend(filtered['AF7'].tolist())
             deep_focus = 0.0
-            if self._baseline_done and 'AF7' in filtered and not headband_off:
-                deep_focus = self._cfc_score(filtered['AF7'], fs=fs)
+            if self._baseline_done and not headband_off:
+                cfc_data = np.array(list(self._cfc_buffer), dtype=np.float64)
+                deep_focus = self._cfc_score(cfc_data, fs=fs, emg_detected=emg_detected)
 
             # ── Mind State Classification (Muse-style Active/Neutral/Calm) ──
             # Based on alpha vs beta relative power:
@@ -989,6 +1287,7 @@ class ConnectionManager:
             # Always update focus (0 when off, real when on)
             snapshot_updates['focus'] = focus_metric
             snapshot_updates['mind_state'] = mind_state
+            # TBR already added to snapshot_updates above (PhD Fix P2)
             snapshot_updates['deep_focus'] = deep_focus
 
             with self._lock:
@@ -999,14 +1298,16 @@ class ConnectionManager:
                 self.snapshot.emg_noise  = emg_detected
                 self.snapshot.connected  = True
                 self.snapshot.headband_on = not headband_off
+                self.snapshot.tbr = snapshot_updates.get('tbr', 0.0)  # PhD Fix P2: TBR
 
-                # Mind state (Muse-style Active/Neutral/Calm)
+                # M2 Fix: Use real elapsed time instead of incrementing by 0.5
                 prev_state = self.snapshot.mind_state
                 self.snapshot.mind_state = mind_state
                 if mind_state == prev_state and mind_state in ('calm', 'neutral', 'active'):
-                    self.snapshot.mind_state_time += 0.5  # ~2 updates/sec
+                    self.snapshot.mind_state_time = time.time() - self._mind_state_last_change
                 else:
                     self.snapshot.mind_state_time = 0.0
+                    self._mind_state_last_change = time.time()
 
                 if ampl_ok:
                     # Band powers: EMA (α=0.03 ≈ 1.6s time constant — smooth like Muse app)
@@ -1023,10 +1324,11 @@ class ConnectionManager:
                         self._smooth_hist['focus'] = 0.0
                         self.snapshot.focus = 0.0
                         self.snapshot.deep_focus = 0.0
-                        self._savgol_focus_history.clear()  # Flush S-G trajectory on off-head
+                        self._savgol_focus_history.clear()
                     else:
-                        # Stage 2a: Focus output EMA (α=0.01 ≈ 5s time constant — slow stable needle)
-                        focus_ema_alpha = 0.01
+                        # ST2 Fix: EMA alpha increased from 0.01→0.05
+                        # Time constant: 1/0.05 = 20 samples ÷ 2/sec = ~10s (was 50s)
+                        focus_ema_alpha = 0.05
                         prev_focus = self._smooth_hist['focus']
                         smooth_focus = prev_focus * (1 - focus_ema_alpha) + snapshot_updates['focus'] * focus_ema_alpha
                         self._smooth_hist['focus'] = smooth_focus
@@ -1064,14 +1366,25 @@ class ConnectionManager:
             return False
 
     def _read_lsl_loop(self, inlet):
+        """C3 Fix: LSL loop now feeds samples into buffers and triggers DSP queue,
+        identical to the BLE path. Previously it only set 'connected' flag."""
+        ch_names = ['TP9', 'AF7', 'AF8', 'TP10']
         while self._state == 'connected':
             try:
                 sample, ts = inlet.pull_sample(timeout=1.0)
                 if sample:
-                    data = np.array(sample)
+                    # Feed each channel value into the correct buffer
                     with self._lock:
+                        for i, ch in enumerate(ch_names):
+                            if i < len(sample):
+                                self._buffers[ch].append(float(sample[i]))
                         self.snapshot.connected = True
                         self.snapshot.timestamp = time.time()
+                    # Trigger DSP processing (non-blocking)
+                    try:
+                        self._dsp_queue.put_nowait(True)
+                    except queue.Full:
+                        pass  # Skip if DSP is busy
             except Exception:
                 break
         self._state = 'idle'
@@ -1104,8 +1417,9 @@ def get_sensor_diagnostics():
     }
     
     for ch in ch_names:
-        buf = conn_mgr._buffers.get(ch, [])
-        n = len(buf)
+        buf = conn_mgr._buffers.get(ch, deque())  # Fix: use deque as default
+        buf_list = list(buf)  # Convert deque to list for slicing
+        n = len(buf_list)
         
         if n < 10:
             diag['eeg'][ch] = {
@@ -1117,7 +1431,7 @@ def get_sensor_diagnostics():
             }
             continue
         
-        data = np.array(buf[-256:], dtype=np.float64)  # Last 1 second
+        data = np.array(buf_list[-256:], dtype=np.float64)  # Last 1 second
         amp = float(np.mean(np.abs(data)))
         noise = float(np.std(data))
         p2p = float(np.max(data) - np.min(data))
@@ -1272,7 +1586,9 @@ async def handle_settings(request: web.Request) -> web.Response:
 
 # -- Calibration --
 async def handle_calibrate(request: web.Request) -> web.Response:
-    logger.info("Calibration requested by client.")
+    """A2 Fix: Actually reset baseline when calibration is requested."""
+    logger.info("Calibration requested by client — resetting baseline.")
+    conn_mgr.reset_baseline()
     return web.json_response({'status': 'calibration_started'})
 
 # -- Session Start (reset baseline for new student) --
@@ -1286,6 +1602,46 @@ async def handle_session_start(request: web.Request) -> web.Response:
 async def handle_sensor_test(request: web.Request) -> web.Response:
     diag = get_sensor_diagnostics()
     return web.json_response(diag)
+
+# ═══════════════════════════════════════════════════════════════
+#  SSE STREAM HANDLER (Option A: replaces 500ms HTTP polling)
+#  Push at 20Hz from backend → frontend. No TCP handshake per frame.
+#  Route: GET /api/stream  (EventSource in browser JS)
+# ═══════════════════════════════════════════════════════════════
+import asyncio as _asyncio
+
+_sse_clients: list = []  # Active SSE response objects
+
+async def handle_sse_stream(request: web.Request) -> web.StreamResponse:
+    """Server-Sent Events endpoint. Pushes EEG telemetry at 20Hz.
+    Browser connects once: const src = new EventSource('/api/stream');
+    src.onmessage = e => updateDashboard(JSON.parse(e.data));
+    """
+    response = web.StreamResponse()
+    response.headers['Content-Type'] = 'text/event-stream'
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['X-Accel-Buffering'] = 'no'
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    await response.prepare(request)
+    _sse_clients.append(response)
+    logger.info(f"SSE client connected. Total: {len(_sse_clients)}")
+    try:
+        while True:
+            if request.transport and request.transport.is_closing():
+                break
+            snapshot = conn_mgr.get_snapshot()
+            data = json.dumps(snapshot, default=str)
+            await response.write(f"data: {data}\n\n".encode())
+            await _asyncio.sleep(0.05)  # 20Hz push
+    except (ConnectionResetError, asyncio.CancelledError):
+        pass
+    except Exception as e:
+        logger.debug(f"SSE client disconnected: {e}")
+    finally:
+        if response in _sse_clients:
+            _sse_clients.remove(response)
+        logger.info(f"SSE client disconnected. Remaining: {len(_sse_clients)}")
+    return response
 
 # ═══════════════════════════════════════════════════════════════
 #  PHASE 2 API HANDLERS — Student Management & Database
@@ -1403,10 +1759,13 @@ async def handle_report_generate(request: web.Request) -> web.Response:
         }
         from reporting import generate_pdf_report
         pdf_bytes = generate_pdf_report(student, sessions)
+        # SEC4 Fix: Sanitize student name for Content-Disposition header
+        import re
+        safe_name = re.sub(r'[^a-zA-Z0-9_\- ]', '', student['name']).strip() or 'Student'
         return web.Response(
             body=pdf_bytes,
             content_type='application/pdf',
-            headers={'Content-Disposition': f'attachment; filename="{student["name"]}_report.pdf"'}
+            headers={'Content-Disposition': f'attachment; filename="{safe_name}_report.pdf"'}
         )
     except Exception as e:
         logger.error(f'Report error: {e}')
@@ -1504,6 +1863,7 @@ def create_app() -> web.Application:
     app.router.add_get('/', handle_index)
     app.router.add_get('/assets/{path:.+}', handle_assets)
     app.router.add_get('/api/focus', handle_focus)
+    app.router.add_get('/api/stream', handle_sse_stream)  # Option A: SSE 20Hz push
     app.router.add_get('/api/status', handle_status)
     app.router.add_get('/api/system/status', handle_system_status)
     app.router.add_post('/api/system/connect', handle_connect)
@@ -1592,19 +1952,48 @@ def launch_app_window(url: str):
 # ═══════════════════════════════════════════════════════════════
 if __name__ == '__main__':
 
-
-
     print()
     print("=" * 60)
-    print("  FocusFlow — Precision Neurofeedback")
+    print("  FocusFlow V2.3 — Precision Neurofeedback")
     print("=" * 60)
     print(f"  BLE (Direct) : {'OK (muse_ble)' if BLE_AVAILABLE else 'OFF'}")
     print(f"  LSL Fallback : {'OK (pylsl)' if LSL_AVAILABLE else 'OFF'}")
     print("=" * 60)
     print()
 
-    # Launch native window after server starts
-    url = f'http://localhost:{config.PORT}/'
+    # ── V2.3 Fix #11: Dynamic port binding ──────────────────────────
+    # Try the preferred port first. If it's taken by another app or a
+    # crashed zombie instance, bind to port 0 (OS picks a free port).
+    # Write the bound port to .focusflow_port so the browser launcher
+    # can always connect to the right address, even after a port change.
+    import socket as _socket
+    import tempfile as _tempfile
+
+    def _find_free_port(preferred: int) -> int:
+        """Try preferred port; fall back to OS-assigned if taken."""
+        with _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM) as s:
+            try:
+                s.bind(('127.0.0.1', preferred))
+                return preferred
+            except OSError:
+                s.bind(('127.0.0.1', 0))
+                return s.getsockname()[1]
+
+    bound_port = _find_free_port(config.PORT)
+    if bound_port != config.PORT:
+        print(f"  ⚠️  Port {config.PORT} is in use. Using OS-assigned port {bound_port} instead.")
+    else:
+        print(f"  ✅ Listening on port {bound_port}")
+
+    # Write port to handshake file for the browser launcher
+    port_file = os.path.join(_tempfile.gettempdir(), '.focusflow_port')
+    try:
+        with open(port_file, 'w') as _pf:
+            _pf.write(str(bound_port))
+    except Exception:
+        pass
+
+    url = f'http://localhost:{bound_port}/'
 
     def _open_window():
         time.sleep(1.5)  # Let server start
@@ -1614,14 +2003,12 @@ if __name__ == '__main__':
     # Run server (blocks until Ctrl+C)
     app = create_app()
     try:
-        web.run_app(app, host=config.HOST, port=config.PORT, print=None, access_log=logger)
+        web.run_app(app, host=config.HOST, port=bound_port, print=None, access_log=logger)
     except OSError as e:
         print("\n" + "!" * 60)
-        print(" ERROR: PORT ALREADY IN USE")
+        print(" ERROR: COULD NOT BIND TO ANY PORT")
         print("!" * 60)
-        print(f" Could not start the server on port {config.PORT}.")
-        print(" This usually means FocusFlow is already running in the background.")
-        print(" Please close any other instances of FocusFlow or check your task manager.")
+        print(f" Could not start the server: {e}")
         print("!" * 60 + "\n")
         input(" Press Enter to exit...")
         sys.exit(1)

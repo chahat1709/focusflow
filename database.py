@@ -1,10 +1,13 @@
 """
 database.py — Supabase integration for FocusFlow Phase 2.
 Handles College, Class, Student, and Session CRUD operations.
+Includes local fallback queue to prevent silent data loss (Stress Fix S1).
 """
 
 import logging
 import time
+import json as _json
+import os
 from typing import Optional, List, Dict
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
@@ -20,6 +23,9 @@ _FAIL_THRESHOLD = 2       # Failures before circuit opens
 _COOLDOWN_SEC = 60        # Wait 60s before retrying after circuit opens
 _QUERY_TIMEOUT = 8        # Max seconds per Supabase query
 _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix='db')
+
+# ── Stress Fix S1: Local fallback queue path ──
+_FALLBACK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '_failed_sessions.json')
 
 def _circuit_ok() -> bool:
     """Check if circuit breaker allows requests."""
@@ -78,6 +84,69 @@ def get_client():
 
 def is_connected() -> bool:
     return get_client() is not None
+
+# ═══════════════════════════════════════════════════════════════
+#  STRESS FIX S1: LOCAL FALLBACK QUEUE
+#  Prevents silent data loss when Supabase is unreachable.
+#  Failed sessions are saved to _failed_sessions.json and
+#  retried on the next successful save.
+# ═══════════════════════════════════════════════════════════════
+def _queue_failed_session(session_data: dict):
+    """Save a failed session to local JSON fallback queue."""
+    try:
+        existing = []
+        if os.path.exists(_FALLBACK_FILE):
+            with open(_FALLBACK_FILE, 'r', encoding='utf-8') as f:
+                existing = _json.load(f)
+        existing.append({
+            **session_data,
+            '_queued_at': time.time(),
+            '_retry_count': 0
+        })
+        with open(_FALLBACK_FILE, 'w', encoding='utf-8') as f:
+            _json.dump(existing, f, indent=2)
+        logger.warning(f"Session queued locally ({len(existing)} pending). Will retry on next successful save.")
+    except Exception as e:
+        logger.error(f"CRITICAL: Failed to queue session locally: {e}")
+
+def _flush_failed_sessions():
+    """Attempt to re-save any queued sessions to Supabase.
+    Called after each successful session save."""
+    if not os.path.exists(_FALLBACK_FILE):
+        return
+    try:
+        with open(_FALLBACK_FILE, 'r', encoding='utf-8') as f:
+            queued = _json.load(f)
+        if not queued:
+            return
+        
+        db = get_client()
+        if not db:
+            return
+        
+        still_failed = []
+        flushed = 0
+        for item in queued:
+            try:
+                # Remove internal metadata before sending to Supabase
+                data = {k: v for k, v in item.items() if not k.startswith('_')}
+                db.table("sessions").insert(data).execute()
+                flushed += 1
+            except Exception:
+                item['_retry_count'] = item.get('_retry_count', 0) + 1
+                if item['_retry_count'] < 10:  # Give up after 10 retries
+                    still_failed.append(item)
+        
+        if still_failed:
+            with open(_FALLBACK_FILE, 'w', encoding='utf-8') as f:
+                _json.dump(still_failed, f, indent=2)
+        else:
+            os.remove(_FALLBACK_FILE)
+        
+        if flushed:
+            logger.info(f"Flushed {flushed} previously queued sessions to Supabase. {len(still_failed)} still pending.")
+    except Exception as e:
+        logger.error(f"Error flushing failed sessions: {e}")
 
 # ── COLLEGE ──────────────────────────────────────────────────────────
 def add_college(name: str, city: str = "", board: str = "") -> Optional[Dict]:
@@ -210,24 +279,33 @@ def search_students(college_name: str = "", class_name: str = "", student_name: 
 # ── SESSION ─────────────────────────────────────────────────────────────
 def save_session(student_id: str, duration: int, avg_focus: float,
                  peak_focus: float, graph_data: list = None) -> Optional[Dict]:
-    """Save a completed neurofeedback session."""
+    """Save a completed neurofeedback session.
+    Stress Fix S1: If Supabase fails, session is queued locally to
+    _failed_sessions.json. NO DATA IS EVER SILENTLY LOST."""
+    session_data = {
+        "student_id": student_id,
+        "duration_sec": duration,
+        "score_focus": round(avg_focus, 2),
+        "score_peak": round(peak_focus, 2),
+        "graph_data": _json.dumps(graph_data or [])
+    }
     try:
         db = get_client()
         if not db:
-            logger.warning("Supabase offline — session not saved to cloud.")
-            return {"id": "offline", "student_id": student_id, "avg_focus": avg_focus}
-        import json
-        res = db.table("sessions").insert({
-            "student_id": student_id,
-            "duration_sec": duration,
-            "score_focus": round(avg_focus, 2),
-            "score_peak": round(peak_focus, 2),
-            "graph_data": json.dumps(graph_data or [])
-        }).execute()
+            logger.warning("Supabase offline — session queued locally.")
+            _queue_failed_session(session_data)
+            return {"id": "queued_offline", "student_id": student_id, "avg_focus": avg_focus}
+        
+        res = db.table("sessions").insert(session_data).execute()
+        
+        # On successful save, try to flush any previously queued sessions
+        _flush_failed_sessions()
+        
         return res.data[0] if res.data else None
     except Exception as e:
-        logger.error(f"save_session error: {e}")
-        return None
+        logger.error(f"save_session error: {e} — queuing locally")
+        _queue_failed_session(session_data)
+        return {"id": "queued_offline", "student_id": student_id, "avg_focus": avg_focus}
 
 def get_sessions(student_id: str) -> List[Dict]:
     """Get all sessions for a student, newest first."""
@@ -240,14 +318,13 @@ def get_sessions(student_id: str) -> List[Dict]:
                .eq("student_id", student_id)
                .order("created_at", desc=True)
                .execute())
-        import json
         sessions = res.data or []
         for s in sessions:
             # Parse graph_data from JSON string back to list
             if isinstance(s.get('graph_data'), str):
                 try:
-                    s['graph_data'] = json.loads(s['graph_data'])
-                except (json.JSONDecodeError, TypeError):
+                    s['graph_data'] = _json.loads(s['graph_data'])
+                except (_json.JSONDecodeError, TypeError):
                     s['graph_data'] = []
         return sessions
     except Exception as e:

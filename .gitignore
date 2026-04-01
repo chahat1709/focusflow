@@ -2,6 +2,9 @@
 
 # Environment secrets (NEVER commit)
 .env
+.env.local
+.env.template
+.muse_address
 
 # Local database (user-specific)
 focusflow_local.db
@@ -9,12 +12,17 @@ focusflow_local.db-wal
 focusflow_local.db-shm
 
 # Python
+.venv/
 __pycache__/
 *.pyc
 *.pyo
 *.egg-info/
+
+# Build artifacts
 dist/
 build/
+*.spec
+node_modules/
 
 # IDE
 .vscode/
@@ -24,5 +32,12 @@ build/
 Thumbs.db
 .DS_Store
 
-# Logs
+# Logs & debug output
 *.log
+*.txt
+
+# Scratch files (not part of the project)
+analyze_predator.py
+find_proj.py
+tmp/
+

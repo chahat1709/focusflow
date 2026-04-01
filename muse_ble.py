@@ -352,13 +352,23 @@ class MuseBLEClient:
                     break
             
             if stalled or (self._client and not self._client.is_connected):
-                logger.warning("Data stream STALLED. Attempting transparent reconnect...")
+                logger.warning("Data stream STALLED. Attempting full reconnect handshake...")
                 try:
-                    # Attempt quick reconnect
+                    # Attempt reconnect
                     await self._client.connect(timeout=5.0)
-                    # Re-send start commands
+                    # Full handshake: Halt → DevInfo → Preset P50 → Resume → Start
+                    await self._client.write_gatt_char(CONTROL_UUID, CMD_HALT, response=False)
+                    await asyncio.sleep(0.3)
+                    await self._client.write_gatt_char(CONTROL_UUID, CMD_DEV_INFO, response=False)
+                    await asyncio.sleep(0.3)
+                    await self._client.write_gatt_char(CONTROL_UUID, CMD_PRESET_P50, response=False)
+                    await asyncio.sleep(1.0)
+                    await self._client.write_gatt_char(CONTROL_UUID, CMD_RESUME, response=False)
+                    await asyncio.sleep(0.3)
                     await self._client.write_gatt_char(CONTROL_UUID, CMD_START, response=False)
-                    logger.info("[OK] Reconnected successfully")
+                    await asyncio.sleep(0.3)
+                    await self._client.write_gatt_char(CONTROL_UUID, CMD_KEEP, response=False)
+                    logger.info("[OK] Full reconnect handshake completed")
                     
                     # Reset stall timers to prevent immediate re-trigger
                     now = time.time()
@@ -414,12 +424,10 @@ class MuseBLEClient:
 
     def _on_imu_notification(self, sensor_type: str, data: bytes):
         """Called when a BLE notification arrives for Accel/Gyro."""
-        # Scale factors: 
-        # Accel: 16384 = 1g? (Muse docs say 16384)
-        # Gyro: ? (Muse docs say degrees/sec, scaling factor needed?)
-        # For now, pass raw/normalized.
-        
-        scale = 1.0
+        # Calibrated scale factors for Muse 2 hardware:
+        # Accelerometer: 16384 LSB/g → multiply by 1/16384 to get g-force
+        # Gyroscope: 131 LSB/(deg/s) → multiply by 1/131 to get deg/s
+        scale = 1.0 / 16384.0 if sensor_type == 'accel' else 1.0 / 131.0
         samples = parse_imu_packet(bytes(data), scale=scale)
         if not samples:
             return
@@ -444,10 +452,11 @@ class MuseBLEClient:
 
     # ── KEEP ALIVE ───────────────────────────────────────────
     async def _keep_alive_loop(self):
-        """Send keep-alive every 10 seconds to prevent Muse from disconnecting."""
+        """Send keep-alive every 8 seconds to prevent Muse from disconnecting.
+        Muse 2 firmware timeout is ~10-12s; 8s gives safe margin for BLE jitter."""
         while self._connected:
             try:
-                await asyncio.sleep(10)
+                await asyncio.sleep(8)
                 if self._client and self._client.is_connected:
                     await self._client.write_gatt_char(CONTROL_UUID, CMD_KEEP)
                 else:

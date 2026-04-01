@@ -56,6 +56,7 @@ a = Analysis(
         'storage3',
         'realtime',
         'scipy', 'scipy.signal',
+        'numba', 'llvmlite',
         'database', 'reporting'
     ],
     hookspath=[],

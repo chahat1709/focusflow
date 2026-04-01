@@ -7,7 +7,7 @@ FocusFlow is engineered as a high-concurrency, low-latency neurofeedback infrast
 *   **High-Performance Computing**: `NumPy` and `SciPy` for real-time vector mathematical operations.
 *   **Frontend Architecture**: High-speed Vanilla JavaScript (ES6) with hardware-accelerated CSS3 (GPU-composited layers).
 *   **Data Serialization**: Custom JSON-based protocol for low-overhead transmission of high-frequency data packets.
-*   **Hardware Layer**: `Bleak` (Bluetooth Low Energy) and `PyLSL` (Lab Streaming Layer) for research-grade time synchronization.
+*   **Hardware Layer**: `Bleak` (Bluetooth Low Energy) and `PyLSL` (Lab Streaming Layer) for educational-grade time synchronization.
 
 ---
 
@@ -43,7 +43,7 @@ The system features specialized interactive modules designed to convert complex 
 ---
 
 ## 5. Current State of Completion (100% Functional)
-*   ✅ **Research-Grade DSP Pipeline**: CAR, Spike Rejection, and Butterworth filtering.
+*   ✅ **Educational-Grade DSP Pipeline**: CAR, Spike Rejection, and Butterworth filtering.
 *   ✅ **Blink-Proof Logic**: Automatic masking of EOG (Eye) artifacts from PSD math.
 *   ✅ **Live Dashboard**: Real-time 4-channel EEG plotting and Focus-over-time trends.
 *   ✅ **School Management UI**: Hierarchical roster management (Schools/Classes/Students).

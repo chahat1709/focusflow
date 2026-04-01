@@ -1,7 +1,7 @@
 # FocusFlow - Project Walkthrough
 
 ## v3.0 Clinical Precision & Stability (2025-02-21)
-This upgrade elevates FocusFlow from a consumer-grade app to a **Research-Grade Clinical Tool**.
+This upgrade elevates FocusFlow from a consumer-grade app to an **Educational EEG Clinical Tool**.
 
 ### 1. 🔬 Clinical Precision Engine
 Implemented high-performance Digital Signal Processing (DSP) that matches Muse Direct.
@@ -25,7 +25,7 @@ Industrial-strength reliability for school environments.
 - **Watchdog Monitor**: A background task that detects stalled data streams and forces a transparent GATT reconnect.
 - **Auto-Recovery**: If the headset drops out, it recovers the stream automatically without operator intervention.
 
-## v3.1 Research-Grade Denoising (v3.1)
+## v3.1 Educational-Grade Denoising (v3.1)
 The highest level of noise removal possible without hospital-grade equipment.
 - **CAR (Common Average Reference)**: Analyzes all sensors together and cancels out noise that hits them at the same time (like electrical hum/EMI).
 - **Spike Rejection**: Advanced "digital shield" detects and removes tiny erratic electrical spikes (sparkle noise).

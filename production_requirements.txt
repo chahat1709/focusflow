@@ -6,3 +6,5 @@ supabase>=2.0.0
 fpdf2>=2.7.0
 scipy>=1.10.0
 bleak>=0.20.0
+numba>=0.64.0
+llvmlite>=0.46.0

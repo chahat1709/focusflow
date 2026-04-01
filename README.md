@@ -1,18 +1,18 @@
 # FocusFlow — Real-Time Neurofeedback System for Muse 2
 
-> **A clinical-grade EEG focus scoring and school management platform, built exclusively for the InteraXon Muse 2 headband using bleak (Direct BLE) + muselsl/pylsl (LSL fallback).**
+> **Verified Indigenous Core Technology. An Educational EEG focus scoring platform built through the lens of a Vibe Coder—combining vision, intuition, and deep AI-collaboration to bypass vendor SDKs and build a native machine.**
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue) ![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey) ![Hardware](https://img.shields.io/badge/Hardware-Muse%202%20EEG-purple) ![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.11+-blue) ![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey) ![Hardware](https://img.shields.io/badge/Hardware-Muse%202%20EEG-purple) ![Status](https://img.shields.io/badge/Status-Indigenous%20Core%20Tech-brightgreen)
 
 ---
 
 ## 🧠 What Is FocusFlow?
 
-FocusFlow is a **standalone, offline, production-ready** neurofeedback platform that turns the Muse 2 EEG headband into a clinical-grade focus assessment tool for schools, clinics, and research labs.
+FocusFlow is a **standalone, offline, Educational EEG** neurofeedback platform that turns the Muse 2 EEG headband into a focus assessment tool for schools, clinics, and educational labs. 
 
-Unlike the official Muse app (which only measures meditation), FocusFlow measures **cognitive focus** in real-time — giving a score, trend graph, and printable PDF report for each student or participant.
+It represents the pinnacle of **AI-assisted engineering**: using vision and high-level strategy to develop low-level signal processing that traditionally requires an entire team of embedded developers. 
 
-**No cloud. No subscription. One `.exe` file. Runs on any Windows machine.**
+**No cloud. No subscription. No vendor SDKs. Just the engine. Runs on any Windows machine.**
 
 ---
 
@@ -102,4 +102,4 @@ Unauthorized use, copying, or distribution is strictly prohibited.
 
 ---
 
-*Built with precision engineering for the Muse 2 ecosystem.*
+*Verified Indigenous Core Technology. Built through Vision and AI-Collaboration.*

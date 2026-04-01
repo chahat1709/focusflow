@@ -1,0 +1,2245 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Flow | Precision Neurofeedback</title>
+    <!-- Local Assets for Offline Capability -->
+    <script src="/assets/libs/tailwind.js"></script>
+    <script src="/assets/libs/chart.min.js"></script>
+    <script src="/assets/libs/three.min.js"></script>
+
+    <style>
+        /* === THERAPEUTIC DESIGN SYSTEM === */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        :root {
+            --ocean-deep: #0A2E4D;
+            --ocean-mid: #1e3a5f;
+            --ocean-light: #2A4365;
+            --therapeutic-teal: #2DD4BF;
+            --healing-sage: #86EFAC;
+            --calm-sky: #7DD3FC;
+            --warm-sand: #FCD34D;
+            --glass-bg: rgba(42, 67, 101, 0.35);
+            --glass-border: rgba(45, 212, 191, 0.15);
+            --glass-hover: rgba(42, 67, 101, 0.5);
+            --text-primary: #E0F2FE;
+            --text-secondary: #94A3B8;
+            --text-data: #F0F9FF;
+            --shadow-soft: 0 4px 24px rgba(0, 0, 0, 0.2);
+            --shadow-glow: 0 0 20px rgba(45, 212, 191, 0.15);
+        }
+
+        /* ══════════════════════════════════════════════════════
+           LIGHT THEME — Professional Colorful
+           Design: White + Colored Accents (Enterprise SaaS)
+           Palette: Teal · Indigo · Coral · Amber · Emerald
+        ══════════════════════════════════════════════════════ */
+        [data-theme="light"] {
+            --ocean-deep: #FFFFFF;
+            --ocean-mid: #F9FAFB;
+            --ocean-light: #F3F4F6;
+            --therapeutic-teal: #0D9488;
+            --healing-sage: #059669;
+            --calm-sky: #6366F1;
+            --warm-sand: #F59E0B;
+            --glass-bg: #FFFFFF;
+            --glass-border: #E5E7EB;
+            --glass-hover: #F9FAFB;
+            --text-primary: #111827;
+            --text-secondary: #6B7280;
+            --text-data: #1F2937;
+            --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+            --shadow-glow: 0 0 0 2px rgba(13, 148, 136, 0.1);
+        }
+
+        [data-theme="light"] body {
+            background: #F3F4F6;
+        }
+
+        /* ── Sidebar: clean white with colorful active ── */
+        [data-theme="light"] .sidebar {
+            background: #FFFFFF;
+            border-right: 1px solid #E5E7EB;
+            backdrop-filter: none;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.03);
+        }
+
+        [data-theme="light"] .brand-icon {
+            background: linear-gradient(135deg, #0D9488, #6366F1);
+            box-shadow: 0 3px 8px rgba(13, 148, 136, 0.25);
+            animation: none;
+        }
+
+        [data-theme="light"] .tab-btn {
+            color: #4B5563;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+
+        [data-theme="light"] .tab-btn:hover {
+            background: #F3F4F6;
+            border-color: transparent;
+            color: #0D9488;
+            transform: none;
+        }
+
+        [data-theme="light"] .tab-btn::before {
+            display: none;
+        }
+
+        [data-theme="light"] .tab-btn.active {
+            background: linear-gradient(135deg, rgba(13, 148, 136, 0.08), rgba(99, 102, 241, 0.05));
+            border-color: transparent;
+            border-left: 3px solid #0D9488;
+            color: #0D9488;
+            box-shadow: none;
+            font-weight: 600;
+        }
+
+        [data-theme="light"] .tab-btn.active .tab-icon {
+            transform: none;
+        }
+
+        /* ── Header: white with gradient brand ── */
+        [data-theme="light"] .header {
+            background: #FFFFFF;
+            border-bottom: 1px solid #E5E7EB;
+            backdrop-filter: none;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+
+        [data-theme="light"] .session-title span {
+            background: linear-gradient(135deg, #0D9488, #6366F1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        [data-theme="light"] .sidebar-toggle {
+            color: #4B5563;
+        }
+
+        [data-theme="light"] .sidebar-toggle:hover {
+            background: #F3F4F6;
+            color: #0D9488;
+        }
+
+        /* ══════════════════════════════════════════════
+           METRIC CARDS — Colored Left Border Accents
+           Card 1 (Focus):  Teal    #0D9488
+           Card 2 (BPM):    Coral   #F43F5E
+           Card 3 (Fatigue): Amber  #F59E0B
+           Card 4 (Mood):   Indigo  #6366F1
+        ══════════════════════════════════════════════ */
+        [data-theme="light"] .metric-card {
+            border: 1px solid #E5E7EB;
+            border-left: 4px solid #D1D5DB;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            transition: all 0.25s ease;
+        }
+
+        /* Card 1 (Focus): Very light mint green */
+        [data-theme="light"] .metric-card:nth-child(1) {
+            background: #ECFDF5;
+            border-left-color: #0D9488;
+            border-color: #A7F3D0;
+        }
+
+        [data-theme="light"] .metric-card:nth-child(1) .card-value {
+            color: #065F46;
+        }
+
+        [data-theme="light"] .metric-card:nth-child(1) .card-header {
+            color: #047857;
+        }
+
+        /* Card 2 (Heart Rate): Very light blush pink */
+        [data-theme="light"] .metric-card:nth-child(2) {
+            background: #FFF1F2;
+            border-left-color: #F43F5E;
+            border-color: #FECDD3;
+        }
+
+        [data-theme="light"] .metric-card:nth-child(2) .card-value {
+            color: #BE123C;
+        }
+
+        [data-theme="light"] .metric-card:nth-child(2) .card-header {
+            color: #E11D48;
+        }
+
+        /* Card 3 (Fatigue): Very light cream yellow */
+        [data-theme="light"] .metric-card:nth-child(3) {
+            background: #FFFBEB;
+            border-left-color: #F59E0B;
+            border-color: #FDE68A;
+        }
+
+        [data-theme="light"] .metric-card:nth-child(3) .card-value {
+            color: #92400E;
+        }
+
+        [data-theme="light"] .metric-card:nth-child(3) .card-header {
+            color: #B45309;
+        }
+
+        /* Card 4 (Mood): Very light lavender */
+        [data-theme="light"] .metric-card:nth-child(4) {
+            background: #EEF2FF;
+            border-left-color: #6366F1;
+            border-color: #C7D2FE;
+        }
+
+        [data-theme="light"] .metric-card:nth-child(4) .card-value {
+            color: #3730A3;
+        }
+
+        [data-theme="light"] .metric-card:nth-child(4) .card-header {
+            color: #4338CA;
+        }
+
+        /* Hover states */
+        [data-theme="light"] .metric-card:hover {
+            transform: translateY(-3px);
+        }
+
+        [data-theme="light"] .metric-card:nth-child(1):hover {
+            background: #D1FAE5;
+            box-shadow: 0 8px 20px rgba(13, 148, 136, 0.15);
+        }
+
+        [data-theme="light"] .metric-card:nth-child(2):hover {
+            background: #FFE4E6;
+            box-shadow: 0 8px 20px rgba(244, 63, 94, 0.15);
+        }
+
+        [data-theme="light"] .metric-card:nth-child(3):hover {
+            background: #FEF3C7;
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.15);
+        }
+
+        [data-theme="light"] .metric-card:nth-child(4):hover {
+            background: #E0E7FF;
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.15);
+        }
+
+        [data-theme="light"] .card-header {
+            color: #6B7280;
+            font-weight: 600;
+        }
+
+        [data-theme="light"] .card-status {
+            color: #059669;
+        }
+
+        /* ── Charts: white cards with colored header accent ── */
+        [data-theme="light"] .chart-section {
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+        }
+
+        [data-theme="light"] .chart-header {
+            color: #1F2937;
+            border-bottom: 1px solid #F3F4F6;
+        }
+
+        /* ── Status Card ── */
+        [data-theme="light"] .status-card {
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 12px;
+        }
+
+        [data-theme="light"] .status-header {
+            color: #6B7280;
+        }
+
+        [data-theme="light"] .status-text.online {
+            color: #059669;
+        }
+
+        /* ── Modals ── */
+        [data-theme="light"] .modal-overlay {
+            background: rgba(17, 24, 39, 0.25);
+            backdrop-filter: blur(6px);
+        }
+
+        [data-theme="light"] .modal {
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.12);
+        }
+
+        [data-theme="light"] .modal-header {
+            border-bottom: 1px solid #F3F4F6;
+        }
+
+        [data-theme="light"] .modal-title {
+            color: #111827;
+        }
+
+        [data-theme="light"] .modal-close {
+            color: #9CA3AF;
+        }
+
+        [data-theme="light"] .modal-close:hover {
+            color: #374151;
+        }
+
+        /* ── Device Items ── */
+        [data-theme="light"] .device-item {
+            background: #F9FAFB;
+            border: 1px solid #E5E7EB;
+            border-radius: 10px;
+        }
+
+        [data-theme="light"] .device-item:hover {
+            background: #FFFFFF;
+            border-color: #0D9488;
+            box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.1);
+            transform: none;
+        }
+
+        [data-theme="light"] .device-name {
+            color: #111827;
+        }
+
+        [data-theme="light"] .device-address {
+            color: #6B7280;
+        }
+
+        /* ── Sensors ── */
+        [data-theme="light"] .sensor-card {
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+            border-radius: 10px;
+        }
+
+        [data-theme="light"] .sensor-name {
+            color: #111827;
+        }
+
+        [data-theme="light"] .sensor-location {
+            color: #9CA3AF;
+        }
+
+        [data-theme="light"] .sensor-map-container {
+            background: #F9FAFB;
+            border: 1px solid #E5E7EB;
+        }
+
+        /* ── Buttons: gradient teal-to-indigo ── */
+        [data-theme="light"] .btn-primary {
+            background: linear-gradient(135deg, #0D9488, #6366F1);
+            color: #FFFFFF;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(13, 148, 136, 0.2);
+            font-weight: 600;
+        }
+
+        [data-theme="light"] .btn-primary:hover {
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25);
+            transform: translateY(-2px);
+        }
+
+        [data-theme="light"] #connectBtn {
+            background: linear-gradient(135deg, #0D9488, #6366F1);
+            color: #FFFFFF;
+            border-radius: 10px;
+        }
+
+        [data-theme="light"] #connectBtn:hover {
+            box-shadow: 0 4px 16px rgba(13, 148, 136, 0.3);
+        }
+
+        [data-theme="light"] .btn-connect {
+            background: linear-gradient(135deg, rgba(13, 148, 136, 0.04), rgba(99, 102, 241, 0.04));
+            border: 1px solid #0D9488;
+            color: #0D9488;
+            border-radius: 10px;
+        }
+
+        [data-theme="light"] .btn-connect:hover {
+            background: linear-gradient(135deg, rgba(13, 148, 136, 0.08), rgba(99, 102, 241, 0.06));
+        }
+
+        /* ── Alert Banner ── */
+        [data-theme="light"] #alertBanner {
+            background: #FFFFFF;
+            color: #111827;
+            border: 1px solid #E5E7EB;
+            border-left: 4px solid #F59E0B;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        /* ── Scrollbar ── */
+        [data-theme="light"] ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        [data-theme="light"] ::-webkit-scrollbar-thumb {
+            background: #D1D5DB;
+            border-radius: 10px;
+        }
+
+        [data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+            background: #9CA3AF;
+        }
+
+        /* ── Signal Bars: colorful health ── */
+        [data-theme="light"] .signal-bar {
+            background: #E5E7EB;
+        }
+
+        [data-theme="light"] .signal-bar.good {
+            background: #059669;
+            box-shadow: 0 0 6px rgba(5, 150, 105, 0.3);
+        }
+
+        [data-theme="light"] .signal-bar.fair {
+            background: #F59E0B;
+        }
+
+        [data-theme="light"] .signal-bar.poor {
+            background: #EF4444;
+        }
+
+        /* ── Neuro State Badge ── */
+        [data-theme="light"] #neuroStateBadge {
+            background: linear-gradient(135deg, rgba(13, 148, 136, 0.08), rgba(99, 102, 241, 0.06)) !important;
+            border-color: #0D9488 !important;
+            color: #0D9488 !important;
+        }
+
+        /* ── Form Inputs ── */
+        [data-theme="light"] input,
+        [data-theme="light"] select,
+        [data-theme="light"] textarea {
+            background: #FFFFFF !important;
+            border: 1px solid #D1D5DB !important;
+            border-radius: 8px !important;
+            color: #111827 !important;
+        }
+
+        [data-theme="light"] input:focus,
+        [data-theme="light"] select:focus,
+        [data-theme="light"] textarea:focus {
+            border-color: #6366F1 !important;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+            outline: none;
+        }
+
+        [data-theme="light"] input::placeholder {
+            color: #9CA3AF !important;
+        }
+
+        /* ── Student Panel / DB cards ── */
+        [data-theme="light"] .sp-btn {
+            background: linear-gradient(135deg, #0D9488, #6366F1) !important;
+            color: #FFFFFF !important;
+        }
+
+        [data-theme="light"] .db-result-card {
+            background: #FFFFFF;
+            border: 1px solid #E5E7EB;
+        }
+
+        [data-theme="light"] .db-result-card:hover {
+            border-color: #6366F1;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+        }
+
+        [data-theme="light"] .db-search {
+            background: #FFFFFF !important;
+            border: 1px solid #D1D5DB !important;
+        }
+
+        [data-theme="light"] .db-search:focus {
+            border-color: #6366F1 !important;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+        }
+
+        /* ── Status Dots ── */
+        [data-theme="light"] #statusIndicator.idle {
+            background: #D1D5DB;
+        }
+
+        [data-theme="light"] #statusIndicator.scanning {
+            background: #F59E0B;
+        }
+
+        [data-theme="light"] #statusIndicator.connected {
+            background: #059669;
+        }
+
+        [data-theme="light"] #statusIndicator.error {
+            background: #EF4444;
+        }
+
+        /* ── Sensor Test status ── */
+        [data-theme="light"] .sensor-status-dot.pass {
+            background: #059669;
+            box-shadow: 0 0 8px rgba(5, 150, 105, 0.4);
+        }
+
+        [data-theme="light"] .sensor-status-dot.warn {
+            background: #F59E0B;
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+        }
+
+        [data-theme="light"] .sensor-status-dot.fail {
+            background: #EF4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+        }
+
+        /* ── 3D Canvas: show in light mode with adjusted opacity ── */
+        [data-theme="light"] #neuralCanvas {
+            opacity: 0.5 !important;
+        }
+
+
+
+
+
+
+        /* === THEME TOGGLE SWITCH === */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+            margin-right: 16px;
+        }
+
+        .theme-toggle-track {
+            width: 48px;
+            height: 26px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 13px;
+            position: relative;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        [data-theme="light"] .theme-toggle-track {
+            background: #E5E7EB;
+            border-color: #D1D5DB;
+        }
+
+        .theme-toggle-thumb {
+            width: 22px;
+            height: 22px;
+            background: var(--therapeutic-teal);
+            border-radius: 50%;
+            position: absolute;
+            top: 1px;
+            left: 1px;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        [data-theme="light"] .theme-toggle-thumb {
+            background: #F59E0B;
+        }
+
+        .theme-toggle-thumb.light {
+            left: 23px;
+        }
+
+        .theme-toggle-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--ocean-deep) 0%, var(--ocean-mid) 50%, var(--ocean-deep) 100%);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            overflow-y: auto;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--therapeutic-teal);
+            border-radius: 10px;
+            transition: background 0.3s ease;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--calm-sky);
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
+
+        .sidebar {
+            width: clamp(180px, 20vw, 280px);
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            z-index: 100;
+        }
+
+        .app-container.collapsed .sidebar {
+            margin-left: calc(-1 * clamp(180px, 20vw, 280px));
+            visibility: hidden;
+        }
+
+        .sidebar-toggle {
+            background: none;
+            border: none;
+            color: var(--therapeutic-teal);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            margin-right: 12px;
+            border-radius: 8px;
+        }
+
+        .sidebar-toggle:hover {
+            background: rgba(45, 212, 191, 0.1);
+            transform: scale(1.1);
+        }
+
+        .brand {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 32px;
+            padding-left: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-primary);
+        }
+
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--therapeutic-teal), var(--calm-sky));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            animation: breathe 4s ease-in-out infinite;
+        }
+
+        @keyframes breathe {
+
+            0%,
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 10px rgba(45, 212, 191, 0.3);
+            }
+
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 20px rgba(45, 212, 191, 0.5);
+            }
+        }
+
+        .tab-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 32px;
+        }
+
+        .tab-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tab-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.1), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .tab-btn:hover::before {
+            left: 100%;
+        }
+
+        .tab-btn:hover {
+            background: rgba(45, 212, 191, 0.08);
+            border-color: rgba(45, 212, 191, 0.2);
+            transform: translateX(4px);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, rgba(45, 212, 191, 0.15), rgba(125, 211, 252, 0.10));
+            border-color: var(--therapeutic-teal);
+            color: var(--therapeutic-teal);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .tab-icon {
+            font-size: 20px;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .tab-btn.active .tab-icon {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .header {
+            height: clamp(42px, 6vh, 80px);
+            padding: 0 clamp(12px, 2vw, 32px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .session-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .session-title {
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: -0.5px;
+        }
+
+        .session-title span {
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--therapeutic-teal), var(--calm-sky));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .session-controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .btn-primary {
+            padding: 10px 24px;
+            background: linear-gradient(135deg, var(--therapeutic-teal), var(--calm-sky));
+            border: none;
+            border-radius: 10px;
+            color: var(--ocean-deep);
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 4px 12px rgba(45, 212, 191, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(45, 212, 191, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .tab-content-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tab-panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transform: translateX(20px);
+            pointer-events: none;
+            overflow-y: auto;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 32px;
+            overflow-y: auto;
+        }
+
+        .tab-panel.active {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: all;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .metric-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: clamp(10px, 1.5vw, 24px);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: fadeInUp 0.6s ease backwards;
+        }
+
+        .metric-card:hover {
+            background: var(--glass-hover);
+            border-color: var(--therapeutic-teal);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-glow);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card-header {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .card-value {
+            font-size: clamp(20px, 3.5vw, 42px);
+            font-weight: 300;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-data);
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .card-unit {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-left: 8px;
+        }
+
+        .card-status {
+            font-size: 12px;
+            color: var(--healing-sage);
+            margin-top: 8px;
+        }
+
+        .chart-section {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: clamp(10px, 1.5vw, 24px);
+            margin-bottom: clamp(8px, 1vw, 24px);
+        }
+
+        .chart-header {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chart-container {
+            position: relative;
+            height: clamp(140px, 30vh, 300px);
+        }
+
+        .status-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: auto;
+        }
+
+        .status-header {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .status-text {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .status-text.online {
+            color: var(--healing-sage);
+        }
+
+        .status-text.offline {
+            color: var(--text-secondary);
+        }
+
+        .signal-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .signal-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            transition: all 0.4s ease;
+        }
+
+        .signal-bar.good {
+            background: var(--healing-sage);
+            box-shadow: 0 0 8px rgba(134, 239, 172, 0.5);
+        }
+
+        .signal-bar.fair {
+            background: var(--warm-sand);
+        }
+
+        .signal-bar.poor {
+            background: #EF4444;
+        }
+
+        .btn-connect {
+            width: 100%;
+            margin-top: 16px;
+            padding: 12px;
+            background: linear-gradient(135deg, rgba(45, 212, 191, 0.2), rgba(125, 211, 252, 0.15));
+            border: 1px solid var(--therapeutic-teal);
+            border-radius: 10px;
+            color: var(--therapeutic-teal);
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-connect:hover {
+            background: linear-gradient(135deg, rgba(45, 212, 191, 0.3), rgba(125, 211, 252, 0.2));
+            box-shadow: var(--shadow-glow);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.4s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal {
+            background: var(--ocean-mid);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 24px;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 24px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .device-item {
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid transparent;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .device-item:hover {
+            background: rgba(45, 212, 191, 0.1);
+            border-color: var(--therapeutic-teal);
+            transform: translateX(4px);
+        }
+
+        .device-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .device-address {
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-secondary);
+        }
+
+        /* ══════════════════════════════════════════════════════
+           RESPONSIVE: 14-inch Laptops (1366x768)
+           Triggers on small height OR small width screens
+        ══════════════════════════════════════════════════════ */
+        @media (max-height: 800px),
+        (max-width: 1400px) {
+            .header {
+                height: 50px;
+                padding: 0 16px;
+            }
+
+            .header h1 {
+                font-size: 14px;
+            }
+
+            .sidebar {
+                width: 220px;
+                padding: 16px 12px;
+            }
+
+            .app-container.collapsed .sidebar {
+                margin-left: -220px;
+                visibility: hidden;
+            }
+
+            .brand {
+                font-size: 15px;
+                margin-bottom: 16px;
+            }
+
+            .brand-icon {
+                width: 26px;
+                height: 26px;
+                font-size: 14px;
+            }
+
+            .metric-card {
+                padding: 14px;
+                border-radius: 12px;
+            }
+
+            .card-header {
+                font-size: 10px;
+                margin-bottom: 8px;
+                letter-spacing: 1px;
+            }
+
+            .card-value {
+                font-size: 28px;
+                margin-bottom: 4px;
+            }
+
+            .card-unit {
+                font-size: 11px;
+            }
+
+            .card-status {
+                font-size: 10px;
+                margin-top: 4px;
+            }
+
+            .chart-section {
+                padding: 14px;
+                margin-bottom: 12px;
+                border-radius: 12px;
+            }
+
+            .chart-header {
+                font-size: 11px;
+                margin-bottom: 10px;
+            }
+
+            .chart-container {
+                height: 200px;
+            }
+
+            .tab-btn {
+                padding: 10px 12px;
+                font-size: 11px;
+            }
+
+            .tab-icon {
+                font-size: 16px;
+            }
+
+            .tab-panel {
+                padding: 16px;
+            }
+
+            .status-card {
+                padding: 14px;
+                border-radius: 12px;
+            }
+
+            .theme-toggle {
+                margin-right: 8px;
+            }
+
+            .sidebar-toggle {
+                font-size: 20px;
+            }
+        }
+
+        /* ══════════════════════════════════════════════════════
+           RESPONSIVE: Very small height (< 700px)
+           For 768p screens at 100% zoom
+        ══════════════════════════════════════════════════════ */
+        @media (max-height: 700px) {
+            .header {
+                height: 42px;
+                padding: 0 12px;
+            }
+
+            .card-value {
+                font-size: 24px;
+            }
+
+            .metric-card {
+                padding: 10px;
+            }
+
+            .chart-container {
+                height: 160px;
+            }
+
+            .chart-section {
+                padding: 10px;
+                margin-bottom: 8px;
+            }
+
+            .tab-panel {
+                padding: 12px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+        }
+
+        .metric-card,
+        .tab-panel,
+        .modal,
+        .btn-primary {
+            will-change: transform;
+        }
+
+        #connectionStatus {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #statusIndicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #94A3B8;
+        }
+
+        #statusIndicator.idle {
+            background: #94A3B8;
+        }
+
+        #statusIndicator.scanning {
+            background: #FCD34D;
+            animation: pulse 1.5s infinite;
+        }
+
+        #statusIndicator.connected {
+            background: #86EFAC;
+        }
+
+        #statusIndicator.error {
+            background: #EF4444;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        #connectBtn {
+            width: 100%;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #2DD4BF 0%, #14B8A6 100%);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #connectBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(45, 212, 191, 0.4);
+        }
+
+        #connectBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #statusMessage {
+            margin-top: 10px;
+            font-size: 11px;
+            color: #94A3B8;
+            text-align: center;
+        }
+
+        /* === SENSOR MAP === */
+        .sensor-map-container {
+            margin: 20px 0;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            text-align: center;
+        }
+
+        .sensor-node {
+            transition: all 0.3s ease;
+            filter: drop-shadow(0 0 4px currentColor);
+        }
+
+        .sensor-node.pass {
+            fill: var(--healing-sage);
+            color: var(--healing-sage);
+        }
+
+        .sensor-node.warn {
+            fill: var(--warm-sand);
+            color: var(--warm-sand);
+        }
+
+        .sensor-node.fail {
+            fill: #F87171;
+            color: #F87171;
+        }
+
+        .sensor-node.off {
+            fill: #475569;
+            color: #475569;
+        }
+
+        /* === ALERT BANNER === */
+        #alertBanner {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            padding: 12px 24px;
+            border-radius: 30px;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            display: none;
+            /* Hidden by default */
+            animation: slideDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translate(-50%, -100px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+        }
+
+        #alertBanner.warn {
+            border-color: var(--warm-sand);
+            color: var(--warm-sand);
+        }
+
+        #alertBanner.error {
+            border-color: #F87171;
+            color: #F87171;
+        }
+
+        #alertBanner.success {
+            border-color: var(--healing-sage);
+            color: var(--healing-sage);
+        }
+
+        /* === SENSOR TEST === */
+        .sensor-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .sensor-card:hover {
+            border-color: var(--therapeutic-teal);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .sensor-card.pass {
+            border-color: rgba(45, 212, 191, 0.4);
+        }
+
+        .sensor-card.warn {
+            border-color: rgba(251, 191, 36, 0.4);
+        }
+
+        .sensor-card.fail {
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        .sensor-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .sensor-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .sensor-location {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-left: auto;
+        }
+
+        .sensor-status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            transition: background 0.3s ease;
+        }
+
+        .sensor-status-dot.pass {
+            background: #2DD4BF;
+            box-shadow: 0 0 8px rgba(45, 212, 191, 0.6);
+            animation: pulse-green 2s infinite;
+        }
+
+        .sensor-status-dot.warn {
+            background: #FBBF24;
+            box-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
+        }
+
+        .sensor-status-dot.fail {
+            background: #EF4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+            animation: pulse-red 1s infinite;
+        }
+
+        .sensor-status-dot.no-data {
+            background: #475569;
+        }
+
+        @keyframes pulse-green {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        @keyframes pulse-red {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.7;
+                transform: scale(1.3);
+            }
+        }
+
+        .sensor-waveform {
+            width: 100%;
+            height: 50px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.25);
+            margin-bottom: 8px;
+        }
+
+        .sensor-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .sensor-stats b {
+            color: var(--text-primary);
+        }
+
+        /* === PHASE 2: STUDENT PANEL & DATABASE STYLES === */
+        .sp-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+        }
+
+        .sp-card:hover {
+            background: var(--glass-hover);
+            border-color: var(--therapeutic-teal);
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .sp-card.active {
+            background: rgba(45, 212, 191, 0.15);
+            border-color: var(--therapeutic-teal);
+            box-shadow: 0 0 25px rgba(45, 212, 191, 0.2);
+        }
+
+        .sp-card-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .sp-card-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+        .sp-card-sub {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .sp-panel {
+            background: var(--glass-bg);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid var(--glass-border);
+            animation: fadeInUp 0.5s ease;
+        }
+
+        .sp-form-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            color: var(--calm-sky);
+        }
+
+        .sp-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 14px 18px;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .sp-input:focus {
+            border-color: var(--therapeutic-teal);
+            background: rgba(0, 0, 0, 0.3);
+            box-shadow: 0 0 10px rgba(45, 212, 191, 0.1);
+        }
+
+        .sp-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--therapeutic-teal), var(--calm-sky));
+            color: var(--ocean-deep);
+            border: none;
+            border-radius: 12px;
+            padding: 14px;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 8px;
+        }
+
+        .sp-btn:hover {
+            transform: scale(1.02);
+            filter: brightness(1.1);
+            box-shadow: 0 4px 15px rgba(45, 212, 191, 0.3);
+        }
+
+        .sp-list {
+            margin-top: 30px;
+            display: grid;
+            gap: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .sp-item {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .sp-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--glass-border);
+        }
+
+        .db-search {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: var(--text-primary);
+            outline: none;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .db-search:focus {
+            border-color: var(--therapeutic-teal);
+            box-shadow: 0 0 15px rgba(45, 212, 191, 0.1);
+        }
+
+        .db-result-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .db-result-card:hover {
+            background: var(--glass-hover);
+            border-color: var(--therapeutic-teal);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+    </style>
+</head>
+
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen"
+        style="position:fixed;inset:0;background:linear-gradient(135deg,#0A2E4D 0%,#1E3A5F 100%);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.8s ease;">
+        <div style="text-align:center;">
+            <svg width="120" height="120" viewBox="0 0 200 200"
+                style="filter:drop-shadow(0 0 20px rgba(45,212,191,0.5));">
+                <defs>
+                    <linearGradient id="flowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#2DD4BF" />
+                        <stop offset="100%" style="stop-color:#7DD3FC" />
+                    </linearGradient>
+                </defs>
+                <path d="M 40 100 Q 60 80, 80 100 T 120 100 Q 140 120, 160 100" stroke="url(#flowGrad)" stroke-width="4"
+                    fill="none" stroke-linecap="round">
+                    <animate attributeName="stroke-dasharray" from="0,150" to="150,0" dur="2s"
+                        repeatCount="indefinite" />
+                </path>
+                <circle cx="100" cy="100" r="8" fill="url(#flowGrad)" />
+                <circle cx="100" cy="100" r="20" fill="none" stroke="url(#flowGrad)" stroke-width="2" opacity="0.6">
+                    <animate attributeName="r" from="20" to="40" dur="2s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" from="0.6" to="0" dur="2s" repeatCount="indefinite" />
+                </circle>
+            </svg>
+            <h1
+                style="font-size:42px;font-weight:300;margin:30px 0 10px;background:linear-gradient(135deg,#2DD4BF,#7DD3FC);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:2px;">
+                Focus<strong style="font-weight:700;">Flow</strong></h1>
+            <p style="color:#94A3B8;font-size:14px;letter-spacing:1px;text-transform:uppercase;">Precision Neurofeedback
+            </p>
+            <div
+                style="width:200px;height:3px;background:rgba(45,212,191,0.2);margin:30px auto;border-radius:2px;overflow:hidden;">
+                <div
+                    style="width:50%;height:100%;background:linear-gradient(90deg,#2DD4BF,#7DD3FC);animation:load 1.5s ease-in-out infinite;">
+                </div>
+            </div>
+        </div>
+    </div>
+    <style>
+        @keyframes load {
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(300%);
+            }
+        }
+    </style>
+    <script>
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loadingScreen').style.opacity = '0';
+                setTimeout(() => { document.getElementById('loadingScreen').style.display = 'none'; }, 800);
+            }, 1500);
+        });
+    </script>
+
+    <!-- 3D Neural Sphere Background -->
+    <canvas id="neuralCanvas"
+        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.4;"></canvas>
+
+    <!-- Global Alert Banner -->
+    <div id="alertBanner">
+        <span id="alertIcon">⚠️</span>
+        <span id="alertMessage">Neutralizing noise...</span>
+    </div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <div class="brand-icon">🧠</div>
+                <span>Focus<strong>Flow</strong></span>
+                <small style="opacity:0.5;font-size:10px;display:block;margin-top:4px;">v2.0</small>
+            </div>
+
+            <nav class="tab-nav">
+                <button class="tab-btn active" data-tab="monitor"><span
+                        class="tab-icon">📊</span><span>Monitor</span></button>
+                <button class="tab-btn" data-tab="sensortest"><span class="tab-icon">🔬</span><span>Sensor
+                        Test</span></button>
+                <button class="tab-btn" data-tab="studentpanel"><span class="tab-icon">👥</span><span>Student
+                        Panel</span></button>
+                <button class="tab-btn" data-tab="database"><span
+                        class="tab-icon">🗄️</span><span>Database</span></button>
+                <button class="tab-btn" data-tab="analytics"><span
+                        class="tab-icon">📈</span><span>Analytics</span></button>
+                <button class="tab-btn" data-tab="insights"><span
+                        class="tab-icon">💡</span><span>Insights</span></button>
+                <button class="tab-btn" data-tab="settings"><span
+                        class="tab-icon">⚙️</span><span>Settings</span></button>
+            </nav>
+
+            <!-- Connection Status in Sidebar -->
+            <div class="status-card">
+                <!-- Sensor Integrity Map -->
+                <div class="sensor-map-container">
+                    <div class="text-[10px] uppercase tracking-widest text-slate-400 mb-3">Headband Fit</div>
+                    <svg width="120" height="80" viewBox="0 0 120 80">
+                        <!-- Head Outline -->
+                        <path
+                            d="M60 10 C 30 10, 20 40, 20 60 C 20 75, 40 80, 60 80 C 80 80, 100 75, 100 60 C 100 40, 90 10, 60 10"
+                            fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2" />
+                        <!-- Sensor Nodes -->
+                        <circle id="node-TP9" class="sensor-node off" cx="22" cy="55" r="5" />
+                        <circle id="node-AF7" class="sensor-node off" cx="45" cy="22" r="5" />
+                        <circle id="node-AF8" class="sensor-node off" cx="75" cy="22" r="5" />
+                        <circle id="node-TP10" class="sensor-node off" cx="98" cy="55" r="5" />
+                        <!-- Labels -->
+                        <text x="12" y="55" font-size="6" fill="#64748b" text-anchor="end">TP9</text>
+                        <text x="45" y="15" font-size="6" fill="#64748b" text-anchor="middle">AF7</text>
+                        <text x="75" y="15" font-size="6" fill="#64748b" text-anchor="middle">AF8</text>
+                        <text x="108" y="55" font-size="6" fill="#64748b" text-anchor="start">TP10</text>
+                    </svg>
+                    <div id="mapStatus" class="text-[10px] mt-2 text-slate-500 italic">Headset Offline</div>
+                </div>
+
+                <div class="connection-status p-4 mt-auto rounded-xl border border-white/5 bg-black/20">
+                    <div class="status-row">
+                        <span id="sidebarStatus" class="status-text offline">OFFLINE</span>
+                        <span id="sidebarBattery" style="font-family:'JetBrains Mono';font-size:12px;">--%</span>
+                    </div>
+                    <div class="signal-grid">
+                        <div id="sensor-0" class="signal-bar" title="TP9"></div>
+                        <div id="sensor-1" class="signal-bar" title="AF7"></div>
+                        <div id="sensor-2" class="signal-bar" title="AF8"></div>
+                        <div id="sensor-3" class="signal-bar" title="TP10"></div>
+                    </div>
+                    <button class="btn-connect" id="scanBtn">🔍 Connect Sensor</button>
+                </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <div class="session-info">
+                    <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">☰</button>
+                    <h1 class="session-title">Flow<span>State</span></h1>
+                    <div style="font-size: 13px; color: var(--text-secondary); margin-left: 15px;">Therapeutic Monitor
+                    </div>
+                    <div id="neuroStateBadge"
+                        style="margin-left:20px;padding:4px 12px;background:rgba(45,212,191,0.1);border:1px solid var(--therapeutic-teal);border-radius:20px;font-size:11px;font-weight:600;color:var(--therapeutic-teal);letter-spacing:1px;display:none;">
+                        CALIBRATING...</div>
+                </div>
+                <div class="session-controls">
+                    <div class="theme-toggle" onclick="toggleTheme()" title="Switch Theme">
+                        <span class="theme-toggle-label" id="themeLabel">🌙</span>
+                        <div class="theme-toggle-track">
+                            <div class="theme-toggle-thumb" id="themeThumb">🌙</div>
+                        </div>
+                    </div>
+                    <button class="btn-primary" id="stopSessionBtn" onclick="endSession()"
+                        style="display:none; background:linear-gradient(135deg, #EF4444, #F472B6);">⏹ STOP</button>
+                </div>
+            </header>
+
+            <div class="tab-content-wrapper">
+                <!-- Monitor Tab -->
+                <div class="tab-panel active" data-panel="monitor">
+                    <div class="card-grid">
+                        <div class="metric-card" style="animation-delay:0.1s;">
+                            <div class="card-header">Focus Score</div>
+                            <div class="card-value" id="focusValue">0<span class="card-unit">%</span></div>
+                            <div class="card-status" id="focusLabel">Z-Score Normalized</div>
+                        </div>
+                        <div class="metric-card" style="animation-delay:0.2s;">
+                            <div class="card-header">Heart Rate</div>
+                            <div class="card-value" id="bpmValue">--<span class="card-unit">BPM</span></div>
+                            <div class="card-status">HRV: <span id="hrvValue">--</span> ms</div>
+                        </div>
+                        <div class="metric-card" style="animation-delay:0.3s;">
+                            <div class="card-header">Fatigue Index</div>
+                            <div class="card-value" id="blinkValue">0<span class="card-unit">/min</span></div>
+                            <div class="card-status">Normal Range</div>
+                        </div>
+                        <div class="metric-card" style="animation-delay:0.4s;">
+                            <div class="card-header">MOOD INDEX</div>
+                            <div class="card-value" id="valenceValue">--</div>
+                            <div class="card-status" id="valenceLabel">Calibrating...</div>
+                        </div>
+                    </div>
+                    <div class="chart-section">
+                        <div class="chart-header"><span>EEG Frequency Bands</span><span
+                                style="font-size:11px;font-weight:400;">Live Stream</span></div>
+                        <div class="chart-container"><canvas id="focusChart"></canvas></div>
+                    </div>
+                    <div class="chart-section">
+                        <div class="chart-header"><span>Spectral Power Density</span></div>
+                        <div class="chart-container" style="height:200px;"><canvas id="spectrumChart"></canvas></div>
+                    </div>
+                    <div class="chart-section">
+                        <div class="chart-header"><span>Head Motion (Gyro)</span><span
+                                style="font-size:11px;font-weight:400;">Pitch & Roll</span></div>
+                        <div class="chart-container" style="height:150px;"><canvas id="gyroChart"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Sensor Test Tab -->
+                <div class="tab-panel" data-panel="sensortest">
+                    <h2 style="font-size:24px;margin-bottom:8px;">🔬 Sensor Diagnostics</h2>
+                    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:24px;">Real-time hardware check
+                        for all Muse 2 sensors. Wear the headset and connect to begin testing.</p>
+
+                    <div id="sensorTestStatus"
+                        style="padding:12px 16px;background:rgba(45,212,191,0.08);border:1px solid var(--glass-border);border-radius:12px;margin-bottom:24px;font-size:13px;color:var(--text-secondary);text-align:center;">
+                        Connect Muse to start sensor test...
+                    </div>
+
+                    <!-- EEG Section -->
+                    <div style="margin-bottom:24px;">
+                        <div
+                            style="font-size:14px;font-weight:600;color:var(--therapeutic-teal);margin-bottom:12px;letter-spacing:1px;text-transform:uppercase;">
+                            ⚡ EEG Electrodes</div>
+                        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;" id="eegSensorGrid">
+                            <div class="sensor-card" id="sensorTP9">
+                                <div class="sensor-header"><span class="sensor-status-dot no-data"></span><span
+                                        class="sensor-name">TP9</span><span class="sensor-location">Left Ear</span>
+                                </div>
+                                <canvas class="sensor-waveform" id="waveTP9" width="200" height="50"></canvas>
+                                <div class="sensor-stats"><span>Amp: <b id="ampTP9">--</b> µV</span><span>Noise: <b
+                                            id="noiseTP9">--</b></span><span>P2P: <b id="p2pTP9">--</b></span></div>
+                            </div>
+                            <div class="sensor-card" id="sensorAF7">
+                                <div class="sensor-header"><span class="sensor-status-dot no-data"></span><span
+                                        class="sensor-name">AF7</span><span class="sensor-location">Left Forehead</span>
+                                </div>
+                                <canvas class="sensor-waveform" id="waveAF7" width="200" height="50"></canvas>
+                                <div class="sensor-stats"><span>Amp: <b id="ampAF7">--</b> µV</span><span>Noise: <b
+                                            id="noiseAF7">--</b></span><span>P2P: <b id="p2pAF7">--</b></span></div>
+                            </div>
+                            <div class="sensor-card" id="sensorAF8">
+                                <div class="sensor-header"><span class="sensor-status-dot no-data"></span><span
+                                        class="sensor-name">AF8</span><span class="sensor-location">Right
+                                        Forehead</span></div>
+                                <canvas class="sensor-waveform" id="waveAF8" width="200" height="50"></canvas>
+                                <div class="sensor-stats"><span>Amp: <b id="ampAF8">--</b> µV</span><span>Noise: <b
+                                            id="noiseAF8">--</b></span><span>P2P: <b id="p2pAF8">--</b></span></div>
+                            </div>
+                            <div class="sensor-card" id="sensorTP10">
+                                <div class="sensor-header"><span class="sensor-status-dot no-data"></span><span
+                                        class="sensor-name">TP10</span><span class="sensor-location">Right Ear</span>
+                                </div>
+                                <canvas class="sensor-waveform" id="waveTP10" width="200" height="50"></canvas>
+                                <div class="sensor-stats"><span>Amp: <b id="ampTP10">--</b> µV</span><span>Noise: <b
+                                            id="noiseTP10">--</b></span><span>P2P: <b id="p2pTP10">--</b></span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Other Sensors -->
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+                        <div class="sensor-card" id="sensorPPG">
+                            <div class="sensor-header"><span class="sensor-status-dot no-data" id="ppgDot"></span><span
+                                    class="sensor-name">❤️ PPG</span></div>
+                            <div style="font-size:28px;font-weight:700;text-align:center;margin:12px 0;" id="ppgBPM">--
+                                BPM</div>
+                            <div class="sensor-stats"><span id="ppgStatus">Waiting...</span></div>
+                        </div>
+                        <div class="sensor-card" id="sensorAccel">
+                            <div class="sensor-header"><span class="sensor-status-dot no-data"
+                                    id="accelDot"></span><span class="sensor-name">📐 Accelerometer</span></div>
+                            <div
+                                style="font-family:'JetBrains Mono';font-size:12px;margin:12px 0;line-height:1.8;text-align:center;">
+                                <div>X: <b id="accelX">--</b></div>
+                                <div>Y: <b id="accelY">--</b></div>
+                                <div>Z: <b id="accelZ">--</b></div>
+                            </div>
+                        </div>
+                        <div class="sensor-card" id="sensorGyro">
+                            <div class="sensor-header"><span class="sensor-status-dot no-data" id="gyroDot"></span><span
+                                    class="sensor-name">🌀 Gyroscope</span></div>
+                            <div
+                                style="font-family:'JetBrains Mono';font-size:12px;margin:12px 0;line-height:1.8;text-align:center;">
+                                <div>X: <b id="gyroX2">--</b></div>
+                                <div>Y: <b id="gyroY2">--</b></div>
+                                <div>Z: <b id="gyroZ2">--</b></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- IAF Info -->
+                    <div
+                        style="margin-top:24px;padding:16px;background:rgba(45,212,191,0.06);border:1px solid var(--glass-border);border-radius:12px;">
+                        <div style="font-size:13px;font-weight:600;color:var(--therapeutic-teal);margin-bottom:8px;">🧬
+                            Individual Alpha Frequency</div>
+                        <div style="font-size:13px;color:var(--text-secondary);" id="iafDisplay">Not yet calibrated. Run
+                            a session to detect your IAF.</div>
+                    </div>
+                </div>
+
+                <!-- ═══ STUDENT PANEL TAB ═══ -->
+                <div class="tab-panel" data-panel="studentpanel">
+                    <h2 style="font-size:24px;margin-bottom:6px;">👥 Student Panel</h2>
+                    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:28px;">Manage colleges, classes,
+                        and students. Create a hierarchy to track neurofeedback sessions.</p>
+
+                    <!-- 3 Animated Sub-Tab Cards -->
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px;">
+                        <div class="sp-card" id="spCard_college" onclick="showSPPanel('college')">
+                            <div class="sp-card-icon">🏫</div>
+                            <div class="sp-card-title">College</div>
+                            <div class="sp-card-sub">Add school / university</div>
+                        </div>
+                        <div class="sp-card" id="spCard_class" onclick="showSPPanel('class')">
+                            <div class="sp-card-icon">📚</div>
+                            <div class="sp-card-title">Class</div>
+                            <div class="sp-card-sub">Add class / grade</div>
+                        </div>
+                        <div class="sp-card" id="spCard_student" onclick="showSPPanel('student')">
+                            <div class="sp-card-icon">👤</div>
+                            <div class="sp-card-title">Student</div>
+                            <div class="sp-card-sub">Add student profile</div>
+                        </div>
+                    </div>
+
+                    <!-- College Form -->
+                    <div class="sp-panel" id="sp_college">
+                        <div class="sp-form-title">🏫 Create College / School</div>
+                        <input class="sp-input" id="inp_clg_name" placeholder="College / School Name" />
+                        <input class="sp-input" id="inp_clg_city" placeholder="City" />
+                        <input class="sp-input" id="inp_clg_board" placeholder="Board (CBSE / GSEB / Other)" />
+                        <button class="sp-btn" onclick="createCollege()">✚ Create College</button>
+                        <div class="sp-list" id="list_colleges"></div>
+                    </div>
+
+                    <!-- Class Form -->
+                    <div class="sp-panel" id="sp_class" style="display:none;">
+                        <div class="sp-form-title">📚 Add Class</div>
+                        <select class="sp-input" id="sel_clg_for_class">
+                            <option value="">Select College...</option>
+                        </select>
+                        <input class="sp-input" id="inp_class_name" placeholder="Class Name (e.g. Grade 5-A)" />
+                        <button class="sp-btn" onclick="createClass()">✚ Add Class</button>
+                        <div class="sp-list" id="list_classes"></div>
+                    </div>
+
+                    <!-- Student Form -->
+                    <div class="sp-panel" id="sp_student" style="display:none;">
+                        <div class="sp-form-title">👤 Add Student</div>
+                        <select class="sp-input" id="sel_clg_for_student" onchange="loadClassesForStudent()">
+                            <option value="">Select College...</option>
+                        </select>
+                        <select class="sp-input" id="sel_class_for_student">
+                            <option value="">Select Class...</option>
+                        </select>
+                        <input class="sp-input" id="inp_stu_name" placeholder="Student Name" />
+                        <input class="sp-input" id="inp_stu_roll" placeholder="Roll No" />
+                        <input class="sp-input" id="inp_stu_age" placeholder="Age" type="number" />
+                        <input class="sp-input" id="inp_stu_notes" placeholder="Notes (optional)" />
+                        <button class="sp-btn" onclick="createStudent()">✚ Add Student</button>
+                        <div class="sp-list" id="list_students"></div>
+                    </div>
+                </div>
+
+                <!-- ═══ DATABASE TAB ═══ -->
+                <div class="tab-panel" data-panel="database">
+                    <h2 style="font-size:24px;margin-bottom:6px;">🗄️ Database</h2>
+                    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:24px;">Search students and view
+                        or start sessions.</p>
+
+                    <!-- DB Status -->
+                    <div id="dbStatusBar"
+                        style="padding:8px 14px;border-radius:10px;font-size:12px;margin-bottom:20px;display:inline-flex;align-items:center;gap:8px;background:rgba(45,212,191,0.08);border:1px solid var(--glass-border);">
+                        🔴 Not connected to Supabase</div>
+
+                    <!-- 3 Search Bars -->
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;">
+                        <input class="db-search" id="db_search_college" placeholder="🔍 Search College..."
+                            oninput="dbSearch()" />
+                        <input class="db-search" id="db_search_class" placeholder="🔍 Search Class..."
+                            oninput="dbSearch()" />
+                        <input class="db-search" id="db_search_name" placeholder="🔍 Search Student..."
+                            oninput="dbSearch()" />
+                    </div>
+
+                    <!-- Results -->
+                    <div id="dbResults"></div>
+                </div>
+
+                <!-- Session Start Modal (shared) -->
+                <div id="sessionModal"
+                    style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:999;align-items:center;justify-content:center;">
+                    <div
+                        style="background:var(--ocean-mid);border:1px solid var(--glass-border);border-radius:20px;padding:40px;max-width:420px;width:90%;text-align:center;">
+                        <div style="font-size:48px;margin-bottom:16px;">🧠</div>
+                        <div id="modalStudentName" style="font-size:22px;font-weight:600;margin-bottom:6px;">Student
+                            Name</div>
+                        <div id="modalStudentMeta"
+                            style="font-size:13px;color:var(--text-secondary);margin-bottom:28px;">Class — College</div>
+                        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:28px;line-height:1.6;">Ready
+                            to begin a new neurofeedback session for this student.</p>
+                        <div style="display:flex;gap:12px;justify-content:center;">
+                            <button onclick="startSession()"
+                                style="flex:1;padding:14px;background:linear-gradient(135deg,#2DD4BF,#7DD3FC);color:#0A2E4D;font-weight:700;border:none;border-radius:12px;cursor:pointer;font-size:15px;">▶
+                                Start Session</button>
+                            <button onclick="closeModal()"
+                                style="flex:1;padding:14px;background:var(--glass-bg);color:var(--text-primary);border:1px solid var(--glass-border);border-radius:12px;cursor:pointer;font-size:15px;">✖
+                                Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-panel" data-panel="analytics">
+                    <h2 style="font-size:24px;margin-bottom:24px;">Session Analytics</h2>
+                    <div class="chart-section">
+                        <div class="chart-header"><span>Focus History</span><span
+                                style="font-size:11px;font-weight:400;">Last 10 Sessions</span></div>
+                        <div class="chart-container"><canvas id="historyChart"></canvas></div>
+                    </div>
+                    <div class="card-grid" style="grid-template-columns:repeat(2,1fr);">
+                        <div class="metric-card">
+                            <div class="card-header">Total Sessions</div>
+                            <div class="card-value" id="totalSessions">0</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="card-header">Avg Focus</div>
+                            <div class="card-value" id="avgFocus">0<span class="card-unit">%</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Insights Tab -->
+                <div class="tab-panel" data-panel="insights">
+                    <h2 style="font-size:24px;margin-bottom:24px;">AI Insights</h2>
+                    <div class="metric-card">
+                        <div class="card-header">AI Coaching</div>
+                        <p style="color:var(--text-secondary);line-height:1.6;">Personalized meditation guidance and
+                            neurofeedback coaching will appear here when AI Guide is enabled.</p>
+                    </div>
+                </div>
+
+                <!-- Settings Tab -->
+                <div class="tab-panel" data-panel="settings">
+                    <h2 style="font-size:24px;margin-bottom:24px;">Settings</h2>
+                    <div class="metric-card" style="margin-bottom:24px;">
+                        <div class="card-header">🧠 AI Coach Configuration</div>
+                        <div style="margin-top:12px;"><label
+                                style="display:block;color:var(--text-secondary);margin-bottom:8px;font-size:13px;">Google
+                                Gemini API Key</label>
+                            <div style="display:flex;gap:10px;"><input type="password" id="apiKeyInput"
+                                    placeholder="AIzaVy..."
+                                    style="flex:1;background:rgba(0,0,0,0.2);border:1px solid var(--glass-border);color:var(--text-primary);padding:10px;border-radius:8px;font-family:'JetBrains Mono';"><button
+                                    class="btn-primary" onclick="saveSettings()"
+                                    style="width:auto;padding:0 24px;">Save</button></div>
+                            <div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">Required for smart
+                                insights. Key is saved locally.</div>
+                        </div>
+                    </div>
+                    <div class="metric-card" style="margin-bottom:24px;">
+                        <div class="card-header">⚡ Signal Filters</div>
+                        <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;">
+                            <div>
+                                <div style="color:var(--text-primary);font-weight:500;">Power Grid Frequency</div>
+                                <div style="font-size:12px;color:var(--text-secondary);">Select based on your location
+                                    to remove hum.</div>
+                            </div><select id="notchSelect" onchange="saveSettings()"
+                                style="background:rgba(0,0,0,0.2);border:1px solid var(--glass-border);color:var(--text-primary);padding:8px 12px;border-radius:8px;">
+                                <option value="50">50Hz (India/EU)</option>
+                                <option value="60">60Hz (US/Japan)</option>
+                                <option value="dual">Dual (Global)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="card-header">🧠 Brain Baseline</div>
+                        <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;">
+                            <div>
+                                <div style="color:var(--text-primary);font-weight:500;">Clinical Calibration</div>
+                                <div style="font-size:12px;color:var(--text-secondary);">30s scan to personalize your
+                                    stress model.</div>
+                            </div><button class="btn-primary" onclick="startCalibration()"
+                                style="width:auto;padding:8px 16px;background:var(--therapeutic-teal);">Start
+                                Learning</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Bluetooth Scan Modal -->
+    <div class="modal-overlay" id="scanModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Select Muse Device</h3><button class="modal-close"
+                    onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="deviceList">
+                <div style="text-align:center;color:var(--text-secondary);padding:40px 20px;">Searching for devices...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Breath Pacer Overlay -->
+    <div id="breathPacerOverlay"
+        style="position:fixed;bottom:32px;right:32px;width:150px;height:150px;background:var(--glass-bg);backdrop-filter:blur(20px);border:1px solid var(--glass-border);border-radius:20px;display:none;flex-direction:column;align-items:center;justify-content:center;z-index:100;box-shadow:var(--shadow-soft);">
+        <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:12px;">PACER</div>
+        <div id="breathCircle"
+            style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,var(--therapeutic-teal),var(--calm-sky));transition:transform 0.05s linear;box-shadow:0 0 20px rgba(45,212,191,0.4);">
+        </div>
+        <div id="breathText" style="font-size:12px;margin-top:12px;font-weight:600;color:var(--therapeutic-teal);">READY
+        </div>
+    </div>
+
+    <!-- Calibration Overlay -->
+    <div id="calibrationOverlay"
+        style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:1000;flex-direction:column;align-items:center;justify-content:center;background:rgba(15,23,42,0.98);">
+        <h2 style="color:var(--therapeutic-teal);font-size:32px;margin-bottom:20px;">🧠 Learning Your Brain...</h2>
+        <div style="text-align:center;color:var(--text-secondary);margin-bottom:40px;font-size:18px;line-height:1.6;">
+            Sit comfortably.<br>Relax your jaw.<br>Keep your eyes open and focus on a point.<br><span
+                style="color:#F43F5E;font-size:14px;margin-top:10px;display:block;">Do not speak or move.</span></div>
+        <div
+            style="width:300px;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;margin-bottom:30px;">
+            <div id="calibProgress"
+                style="width:0%;height:100%;background:var(--therapeutic-teal);transition:width 0.5s ease;"></div>
+        </div>
+        <button class="btn-primary" onclick="cancelCalibration()"
+            style="background:rgba(255,255,255,0.1);border:1px solid var(--glass-border);">Cancel</button>
+    </div>
+
+    <!-- Connection Overlay - REMOVED per user request -->
+    <div id="connectionOverlay" style="display:none;"></div>
+
+    <script type="module" src="/dashboard_therapeutic.js"></script>
+</body>
+
+</html>
