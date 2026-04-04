@@ -14,10 +14,7 @@ A high-performance native desktop application to read, process, and map real-tim
 
 **Current Progress:** The full DSP pipeline has been architected in Rust, achieving sub-millisecond memory-safe buffer execution. BLE handlers are completely isolated from proprietary middleware. Currently tuning NLMS adaptive filters.
 
-## 🧠 Perplexity Research Proposal Alignment
-*This project is part of my portfolio application for the Perplexity AI Research Residency.* 
 
-**Low-Level Edge Execution:** At Perplexity, my core proposal involves building the "Edge-Augmented Answer Engine"—a lightweight background daemon that silently vectorizes the user's active screen context instantly. FocusFlow V3 demonstrates my extreme proficiency in exactly this domain: writing bare-metal, high-performance background services in `Rust` and `Tauri` that can process overwhelming streams of real-time data (256Hz EEG streams) silently in the background without crushing the user's CPU, a mandatory capability for deploying on-device LLM context injection safely.
 
 ---
 
