@@ -93,9 +93,13 @@ impl MuseConnector {
     }
 }
 
-// Ensure Uuids are parsed
+/// Parse a UUID string constant.
+/// Uses .expect() instead of .unwrap() so that a typo in any BLE constant
+/// produces a readable panic message pointing directly to this file,
+/// rather than an opaque thread panic with no context.
 fn parse_uuid(s: &str) -> Uuid {
-    Uuid::parse_str(s).unwrap()
+    Uuid::parse_str(s)
+        .unwrap_or_else(|e| panic!("Invalid UUID constant '{}' in muse.rs: {}", s, e))
 }
 
 impl HeadsetProvider for MuseConnector {

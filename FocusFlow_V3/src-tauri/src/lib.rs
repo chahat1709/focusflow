@@ -104,29 +104,32 @@ async fn scan_muse(state: tauri::State<'_, AppState>) -> Result<Vec<String>, Str
 
 #[tauri::command]
 async fn connect_muse(device_id: String, state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
-    let muse = state.muse.lock().await;
-    
-    // Connect to the device geometry
-    muse.connect(&device_id).await.map_err(|e| e.to_string())?;
-    
-    // Initialize stream processing
+    // Create the channel BEFORE acquiring the lock, so the receiver can be
+    // moved into the background task without the lock in scope.
     let (tx, mut rx) = tokio::sync::mpsc::channel(1000);
-    muse.stream(tx).await.map_err(|e| e.to_string())?;
-    
-    // Spawn DSP pipeline loop in background
+
+    // Explicit scope: the MutexGuard is dropped at the closing `}` BEFORE
+    // the background task is spawned. This ensures any concurrent call to
+    // scan_muse or get_system_status is not blocked by the DSP loop.
+    {
+        let muse = state.muse.lock().await;
+        muse.connect(&device_id).await.map_err(|e| e.to_string())?;
+        muse.stream(tx).await.map_err(|e| e.to_string())?;
+    } // ← MutexGuard dropped here. All subsequent commands can acquire the lock.
+
+    // Spawn DSP pipeline loop in background (no lock held)
     tauri::async_runtime::spawn(async move {
         // V3.1: Academic-Grade Stateful Signal Processor (256Hz, 4s window)
         let mut processor = dsp::SignalProcessor::new(256.0, 1024);
         while let Some(chunk) = rx.recv().await {
             // Process the chunk via the stateful engine
             if let Some(snapshot) = processor.process_chunk(chunk) {
-                
                 // Emit telemetry to frontend every ~1 second for visual smoothness
                 let _ = app.emit("dsp-snapshot", snapshot);
             }
         }
     });
-    
+
     Ok(())
 }
 

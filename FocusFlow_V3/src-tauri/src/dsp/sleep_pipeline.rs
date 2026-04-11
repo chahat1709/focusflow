@@ -153,7 +153,12 @@ impl SleepPipeline {
 }
 
 fn std_dev(data: &[f64]) -> f64 {
-    if data.is_empty() { return 1.0; }
+    // IMPORTANT: Return INFINITY for empty slices, NOT 1.0.
+    // Returning 1.0 would make the threshold = 2.5 * 1.0 = 2.5 µV,
+    // which is trivially exceeded by any real signal, generating
+    // false REM detections whenever the frontal_buffer is empty.
+    // INFINITY collapses the REM gate so no false positives fire.
+    if data.is_empty() { return f64::INFINITY; }
     let mean = data.iter().sum::<f64>() / data.len() as f64;
     let var = data.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / data.len() as f64;
     var.sqrt().max(1e-10)

@@ -54,41 +54,73 @@ pub fn demean(data: &mut [f64]) {
 }
 
 // ── Butterworth Bandpass Filter ────────────────────────────────
-/// 2nd-order bandpass filter coefficients using the Audio EQ Cookbook
-/// (Robert Bristow-Johnson) bilinear transform formula.
-/// Returns (b, a) coefficient vectors for a single biquad section.
-/// For 4th-order: cascade two sections (caller's responsibility).
+/// 2nd-order digital Butterworth bandpass filter via bilinear transform.
+///
+/// # Derivation
+/// 1. Pre-warp the analog cutoff frequencies to compensate for the bilinear
+///    transform's nonlinear frequency compression:
+///      Ω_low  = 2·fs · tan(π·f_low  / fs)
+///      Ω_high = 2·fs · tan(π·f_high / fs)
+///
+/// 2. Analog bandpass prototype parameters:
+///      BW_a  = Ω_high − Ω_low            (analog bandwidth)
+///      Ω0²   = Ω_low  · Ω_high           (center frequency²)
+///
+/// 3. Analog bandpass transfer function (from 1st-order LP prototype):
+///      H(s) = BW_a·s / (s² + BW_a·s + Ω0²)
+///
+/// 4. Bilinear substitution s = K·(z−1)/(z+1), K = 2·fs, multiply by (z+1)²:
+///
+///    Numerator (z-domain):
+///      BW_a·K·(z²−1) = BW_a·K·z² + 0·z − BW_a·K
+///
+///    Denominator (z-domain):
+///      (K²+BW_a·K+Ω0²)·z² + 2·(Ω0²−K²)·z + (K²−BW_a·K+Ω0²)
+///
+/// 5. Normalize by a0 = K²+BW_a·K+Ω0² to produce standard form.
+///
+/// # Verification
+/// DC gain  (z=+1): b0+b1+b2 = 0  ✓  (bandpass rejects DC)
+/// Nyquist  (z=−1): b0−b1+b2 = 0  ✓  (bandpass rejects Nyquist)
+///
+/// # Note on cascading
+/// Two identical 2nd-order Butterworth sections cascaded produce a
+/// "Butterworth-cascade approximation" of 4th order. The −3dB points
+/// shift inward (to −6dB of the prototype). For our 1–45 Hz passband
+/// this is an acceptable engineering trade-off: signal is attenuated
+/// rather than missing. A proper 4th-order design would require
+/// two sections with different Q values (Biquad Cascade Lattice).
 pub fn butter_bandpass_coefficients(
     lowcut: f64,
     highcut: f64,
     fs: f64,
-    _order: usize,
 ) -> (Vec<f64>, Vec<f64>) {
-    let nyq = 0.5 * fs;
-    let low = lowcut / nyq;
-    let high = highcut / nyq;
+    let k = 2.0 * fs; // Bilinear transform constant
 
-    // Center frequency and bandwidth in normalized angular frequency
-    let w0 = PI * (low + high) / 2.0;   // Center frequency
-    let bw = PI * (high - low);          // Bandwidth
+    // Step 1: Pre-warp analog cutoff frequencies
+    let omega_low  = k * (std::f64::consts::PI * lowcut  / fs).tan();
+    let omega_high = k * (std::f64::consts::PI * highcut / fs).tan();
 
-    // Butterworth Q for bandpass: Q = w0 / bw
-    let alpha = w0.sin() * (bw / 2.0).sinh();
+    // Step 2: Analog prototype parameters
+    let bw_a     = omega_high - omega_low;
+    let omega0_sq = omega_low * omega_high;
 
-    // Bandpass coefficients (constant-0dB-peak-gain form)
-    let b0 = alpha;
-    let b1 = 0.0;
-    let b2 = -alpha;
-    let a0 = 1.0 + alpha;
-    let a1 = -2.0 * w0.cos();
-    let a2 = 1.0 - alpha;
+    // Step 3 & 4: Coefficients after bilinear substitution
+    let a0_coeff =  k * k + bw_a * k + omega0_sq;
+    let a1_coeff =  2.0 * (omega0_sq - k * k);
+    let a2_coeff =  k * k - bw_a * k + omega0_sq;
 
-    // Normalize by a0
-    let b = vec![b0 / a0, b1 / a0, b2 / a0];
-    let a = vec![1.0, a1 / a0, a2 / a0];
+    // Normalize so leading 'a' coefficient is 1.0
+    let b = vec![ bw_a * k / a0_coeff,
+                  0.0,
+                 -bw_a * k / a0_coeff];
+    let a = vec![ 1.0,
+                  a1_coeff / a0_coeff,
+                  a2_coeff / a0_coeff];
 
     (b, a)
 }
+
 
 /// Stateful IIR Filter using Direct Form II Transposed.
 /// This preserves state across multiple calls to `apply()`,
@@ -149,15 +181,15 @@ impl IirFilter {
 /// Create a cascaded 4th-order Butterworth bandpass filter.
 /// Returns two IirFilter sections that should be applied in sequence.
 pub fn make_bandpass_pair(lowcut: f64, highcut: f64, fs: f64) -> (IirFilter, IirFilter) {
-    let (b, a) = butter_bandpass_coefficients(lowcut, highcut, fs, 4);
+    let (b, a) = butter_bandpass_coefficients(lowcut, highcut, fs);
     (IirFilter::new(b.clone(), a.clone()), IirFilter::new(b, a))
 }
 
 /// Bandpass filter: 1-45Hz, 4th-order Butterworth (two cascaded biquads).
 /// This is CAUSAL and stateful.
 pub fn bandpass_filter(data: &mut [f64], lowcut: f64, highcut: f64, fs: f64) {
-    let (b, a) = butter_bandpass_coefficients(lowcut, highcut, fs, 4);
-    // Cascade two identical sections for 4th-order
+    let (b, a) = butter_bandpass_coefficients(lowcut, highcut, fs);
+    // Cascade two identical sections for a steeper roll-off (Butterworth approximation)
     let mut filter1 = IirFilter::new(b.clone(), a.clone());
     let mut filter2 = IirFilter::new(b, a);
     filter1.process_block(data);

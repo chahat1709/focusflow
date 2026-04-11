@@ -215,18 +215,58 @@ impl SignalProcessor {
             *count = 0;
         }
 
-        // 3. Check we have enough data in the window
-        let af7_win = self.windows.get(&Channel::AF7)?;
-        if af7_win.len() < 256 {
+        // 3. Gate: AF7 must have ≥256 samples before we attempt any FFT.
+        //    This is a latency guard — it does not restrict which channels
+        //    contribute to the PSD (see step 4 below).
+        let _af7_gating = self.windows.get(&Channel::AF7)?;
+        if _af7_gating.len() < 256 {
             return None; // Not enough data yet (need at least 1 second)
         }
 
-        // 4. Compute PSD from AF7 channel window
-        let af7_data: Vec<f64> = af7_win.iter().cloned().collect();
-        let (freqs, psd) = features::welch_psd(&af7_data, self.fs, 1024);
-        if psd.is_empty() {
+        // 4. Compute PSD as a straight average across all available channels.
+        //
+        // Rationale: a single electrode captures spatially local activity and
+        // is susceptible to local artifacts (jaw muscle, hair contact resistance).
+        // Averaging 4 channels reduces noise power by √N = 2× (for N=4 channels)
+        // via the law of large numbers, exactly as done in clinical EEG systems.
+        //
+        // We only include channels that have ≥256 samples in their window to
+        // avoid biasing the average with partially-filled buffers.
+        let analysis_channels = [Channel::TP9, Channel::AF7, Channel::AF8, Channel::TP10];
+        let mut psd_sum: Vec<f64> = Vec::new();
+        let mut freqs_out: Vec<f64> = Vec::new();
+        let mut n_valid: usize = 0;
+
+        for ch in &analysis_channels {
+            if let Some(win) = self.windows.get(ch) {
+                if win.len() >= 256 {
+                    let ch_data: Vec<f64> = win.iter().cloned().collect();
+                    let (freqs, psd) = features::welch_psd(&ch_data, self.fs, 1024);
+                    if !psd.is_empty() {
+                        if psd_sum.is_empty() {
+                            psd_sum  = psd;
+                            freqs_out = freqs;
+                        } else {
+                            // Accumulate — we'll divide by n_valid below
+                            for (acc, p) in psd_sum.iter_mut().zip(psd.iter()) {
+                                *acc += p;
+                            }
+                        }
+                        n_valid += 1;
+                    }
+                }
+            }
+        }
+
+        if n_valid == 0 || psd_sum.is_empty() {
             return self.last_snapshot.clone();
         }
+
+        // Normalise sum → mean PSD
+        let n_f = n_valid as f64;
+        let psd: Vec<f64> = psd_sum.iter().map(|p| p / n_f).collect();
+        let freqs = freqs_out;
+
 
         // 5. IAF-personalized band powers
         let iaf = features::find_iaf(&freqs, &psd);

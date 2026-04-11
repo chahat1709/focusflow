@@ -183,15 +183,32 @@ pub fn nlms_adaptive_kernel(
 /// If frozen for >2.5s (640 samples @ 256Hz), reset weights.
 pub const DEATH_LOCK_THRESHOLD: u64 = 640; // 2.5s @ 256Hz
 
+/// V2.3 Fix #10 (Corrected): Check if death-lock threshold exceeded.
+///
+/// The frozen_steps counter tracks how many consecutive samples were flagged
+/// as transients (high-derivative artifact). If this crosses 2.5s worth of
+/// frozen samples, the filter weights are reset to force rapid re-convergence.
+///
+/// IMPORTANT: When a chunk arrives with ZERO frozen samples (clean EEG),
+/// we apply exponential decay (halving) to the counter. Without this, the
+/// counter would accumulate slowly across hours of use and fire randomly.
 pub fn check_death_lock(state: &mut NlmsState, chunk_frozen: u64) -> bool {
+    if chunk_frozen == 0 {
+        // Clean data: exponentially decay the counter toward zero.
+        // This prevents accidental resets from distributed artifact history.
+        state.frozen_steps /= 2;
+        return false;
+    }
+
     state.frozen_steps += chunk_frozen;
     if state.frozen_steps >= DEATH_LOCK_THRESHOLD {
-        // Reset weights to zero — force rapid re-convergence
+        // True death-lock: weights have been frozen for >2.5s continuously.
+        // Force re-convergence by zeroing all weights.
         for w in state.weights.iter_mut() {
             *w = 0.0;
         }
         state.frozen_steps = 0;
-        true // death-lock was triggered
+        true
     } else {
         false
     }
@@ -242,8 +259,40 @@ mod tests {
         let mut state = NlmsState::new(6, 2);
         state.frozen_steps = 100;
 
-        let triggered = check_death_lock(&mut state, 50); // 100 + 50 = 150 < 640
+        let triggered = check_death_lock(&mut state, 50); // non-zero: accumulates
         assert!(!triggered);
-        assert_eq!(state.frozen_steps, 150);
+        assert_eq!(state.frozen_steps, 150, "Non-zero chunk should accumulate");
+    }
+
+    #[test]
+    fn test_death_lock_decays_on_clean_data() {
+        // Clean EEG chunks (chunk_frozen=0) must decay the counter, not accumulate.
+        // Without this, hours of occasional artifacts slowly trigger a false reset.
+        let mut state = NlmsState::new(6, 2);
+        state.frozen_steps = 300;
+
+        let triggered = check_death_lock(&mut state, 0); // clean chunk
+        assert!(!triggered, "Clean chunk should never trigger death-lock");
+        assert_eq!(
+            state.frozen_steps, 150,
+            "Frozen steps should halve on clean data (300 / 2 = 150)"
+        );
+    }
+
+    #[test]
+    fn test_death_lock_counter_returns_to_zero_after_sustained_clean_signal() {
+        // After enough clean chunks, counter should asymptotically approach 0.
+        let mut state = NlmsState::new(6, 2);
+        state.frozen_steps = 640;
+
+        // 10 consecutive clean chunks: 640 -> 320 -> 160 -> 80 -> 40 -> 20 -> 10 -> 5 -> 2 -> 1 -> 0
+        for _ in 0..10 {
+            check_death_lock(&mut state, 0);
+        }
+        assert!(
+            state.frozen_steps < 2,
+            "After 10 clean chunks, counter should approach 0, got {}",
+            state.frozen_steps
+        );
     }
 }

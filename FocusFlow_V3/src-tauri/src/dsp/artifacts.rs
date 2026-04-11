@@ -72,7 +72,9 @@ pub struct BlinkDetectorState {
 
 impl BlinkDetectorState {
     pub fn new() -> Self {
-        Self { running_std: 50.0 } // Initial conservative estimate
+        // Initial std: 30µV is a conservative estimate for scalp EEG amplitude.
+        // The EMA will adapt to the actual subject within ~5 seconds.
+        Self { running_std: 30.0 }
     }
 }
 
@@ -95,9 +97,12 @@ pub fn detect_blinks(
         .map(|i| (af7_data[i].abs() + af8_data[i].abs()) / 2.0)
         .collect();
 
-    // Update running std with EMA (adapts to each subject)
+    // Update running std with EMA.
+    // Alpha=0.2 adapts to a new subject within ~5 seconds at 1 chunk/sec.
+    // Previous alpha=0.05 caused ~60s adaptation lag, silently missing the
+    // first minute of blinks on high-impedance subjects.
     let current_std = std_dev(&combined);
-    state.running_std = 0.95 * state.running_std + 0.05 * current_std;
+    state.running_std = 0.8 * state.running_std + 0.2 * current_std;
     let threshold = (30.0_f64).max(3.0 * state.running_std); // Floor at 30µV
 
     let mut in_blink = false;

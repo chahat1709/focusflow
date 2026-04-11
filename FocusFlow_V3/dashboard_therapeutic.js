@@ -301,6 +301,46 @@ function startStatusPolling() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  DATA POLLING
+// ═══════════════════════════════════════════════════════════════
+let unlistenSnapshots = null;
+
+async function startPolling() {
+    if (unlistenSnapshots) return;
+    unlistenSnapshots = await listen('dsp-snapshot', (event) => {
+        let payload = event.payload;
+        let d = {
+            connection_state: 'connected',
+            headband_on: payload.headband_on,
+            baseline_done: true,
+            // BUG 6 FIX: Rust's tbr_to_focus() already returns a fraction in [0.0, 0.95].
+            // Dividing by 100 here made the maximum focus = 0.0095, always showing 0%.
+            focus: payload.focus_metric,
+            alpha: payload.band_powers.alpha,
+            beta: payload.band_powers.beta,
+            theta: payload.band_powers.theta,
+            delta: payload.band_powers.delta,
+            gamma: payload.band_powers.gamma,
+            emg_noise: payload.emg_detected,
+            blink_rate: payload.blink_count,
+            bpm: 0,
+            gyro: { x: 0, y: 0 },
+            signal_ok: payload.headband_on,
+            mind_state: payload.mind_state.toLowerCase(),
+            diagnostics: { eeg: { TP9: { status: 'PASS' }, AF7: { status: 'PASS' }, AF8: { status: 'PASS' }, TP10: { status: 'PASS' } } }
+        };
+        processServerData(d);
+    });
+}
+
+function stopPolling() {
+    if (unlistenSnapshots) {
+        unlistenSnapshots();
+        unlistenSnapshots = null;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // --- UI FEEDBACK HELPERS ---
 function showAlert(msg, type = 'warn', duration = 4000) {
     const $b = $('alertBanner');
@@ -347,42 +387,7 @@ function updateElectrodeMap(diagnostics) {
         $ms.style.color = 'var(--warm-sand)';
     }
 }
-// ═══════════════════════════════════════════════════════════════
-//  DATA POLLING
-// ═══════════════════════════════════════════════════════════════
-let unlistenSnapshots = null;
-async function startPolling() {
-    if (unlistenSnapshots) return;
-    unlistenSnapshots = await listen('dsp-snapshot', (event) => {
-        let payload = event.payload;
-        let d = {
-            connection_state: 'connected',
-            headband_on: payload.headband_on,
-            baseline_done: true,
-            focus: payload.focus_metric / 100.0,
-            alpha: payload.band_powers.alpha,
-            beta: payload.band_powers.beta,
-            theta: payload.band_powers.theta,
-            delta: payload.band_powers.delta,
-            gamma: payload.band_powers.gamma,
-            emg_noise: payload.emg_detected,
-            blink_rate: payload.blink_count,
-            bpm: 0,
-            gyro: { x: 0, y: 0 },
-            signal_ok: payload.headband_on,
-            mind_state: payload.mind_state.toLowerCase(),
-            diagnostics: { eeg: { TP9: { status: 'PASS' }, AF7: { status: 'PASS' }, AF8: { status: 'PASS' }, TP10: { status: 'PASS' } } }
-        };
-        processServerData(d);
-    });
-}
 
-function stopPolling() {
-    if (unlistenSnapshots) {
-        unlistenSnapshots();
-        unlistenSnapshots = null;
-    }
-}
 
 function processServerData(d) {
     try {

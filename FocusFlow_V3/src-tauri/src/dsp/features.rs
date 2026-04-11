@@ -102,13 +102,24 @@ pub fn compute_tbr(theta_power: f64, beta_power: f64, emg_detected: bool) -> f64
 }
 
 /// Convert TBR to focus metric via Z-score normalization.
-/// Z ∈ [-2, +6] SD → Focus ∈ [0, 0.95].
+///
+/// Neuroscience fact: High TBR = theta dominant = drowsy/inattentive.
+/// Therefore a high raw_ratio MUST produce a LOW focus score.
+/// We invert the Z-score: z = (mean - raw) / std.
+///
+/// z > 0  →  subject is MORE focused than baseline (low TBR)  →  high focus
+/// z < 0  →  subject is LESS focused than baseline (high TBR) →  low focus
+///
+/// Mapping: z ∈ [-2, +6] → Focus ∈ [0.0, 0.95]
+///   z = 0  → 25% (at baseline)
+///   z = +4 → 75% (strong focus)
+///   z = +6 → 95% (maximum focus, clamped)
 pub fn tbr_to_focus(raw_ratio: f64, baseline_mean: f64, baseline_std: f64) -> f64 {
     if baseline_std < 0.001 {
         return 0.0;
     }
-    let z = (raw_ratio - baseline_mean) / baseline_std;
-    // Z=0 → 25% (baseline), Z=+2 → 50%, Z=+4 → 75%, Z=+6 → 95%
+    // CORRECTED: invert so that high TBR → low focus score.
+    let z = (baseline_mean - raw_ratio) / baseline_std;
     let focus = (z + 2.0) / 8.0;
     focus.clamp(0.0, 0.95)
 }
@@ -148,5 +159,30 @@ mod tests {
     fn test_focus_metric_range() {
         let focus = tbr_to_focus(0.5, 0.3, 0.1);
         assert!(focus >= 0.0 && focus <= 0.95, "Focus should be in [0, 0.95]");
+    }
+
+    #[test]
+    fn test_focus_decreases_when_tbr_is_high() {
+        // Clinical validation: a subject with HIGHER TBR than baseline is less focused.
+        // TBR=2.0, baseline_mean=1.0, baseline_std=0.5 → below baseline → low focus
+        let high_tbr_focus = tbr_to_focus(2.0, 1.0, 0.5);
+        // TBR=0.5, same baseline → well above baseline → high focus
+        let low_tbr_focus  = tbr_to_focus(0.5, 1.0, 0.5);
+        assert!(
+            low_tbr_focus > high_tbr_focus,
+            "Lower TBR must yield higher focus. Got low_tbr={:.3}, high_tbr={:.3}",
+            low_tbr_focus, high_tbr_focus
+        );
+    }
+
+    #[test]
+    fn test_focus_baseline_gives_quarter_focus() {
+        // When raw_ratio == baseline_mean, z=0, focus = (0+2)/8 = 0.25
+        let at_baseline = tbr_to_focus(1.5, 1.5, 0.5);
+        assert!(
+            (at_baseline - 0.25).abs() < 0.001,
+            "At baseline TBR, focus should be ~25%, got {:.3}",
+            at_baseline
+        );
     }
 }
