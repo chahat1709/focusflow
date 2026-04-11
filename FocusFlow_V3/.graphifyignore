@@ -1,0 +1,29 @@
+# Graphify ignore file — same syntax as .gitignore
+# Excludes build artifacts, dependencies, and generated files
+# to keep the knowledge graph focused on the actual source code.
+
+# Rust build output (very large, not source code)
+src-tauri/target/
+
+# Node.js dependencies
+node_modules/
+
+# Tauri build output
+dist/
+build/
+
+# Graphify's own output (avoid self-referencing)
+graphify-out/
+
+# Test output files
+*.txt
+test_out.txt
+test_results.txt
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Editor artifacts
+.vscode/
+*.swp
